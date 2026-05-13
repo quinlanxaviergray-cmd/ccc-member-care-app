@@ -24,7 +24,7 @@ function formatDate(date) {
 }
 
 function isNeedsAttention(card) {
-  if (card.status !== 'active') return false
+  if (card.status === 'completed') return false
   if (!card.last_interaction_at) return true
 
   const last = new Date(card.last_interaction_at)
@@ -110,7 +110,7 @@ function CardForm({ initial, onSave, onClose }) {
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
-    
+
     if (!form.name.trim() || !form.care_title.trim()) {
       setError('Name and Care Title are required.')
       return
@@ -118,7 +118,7 @@ function CardForm({ initial, onSave, onClose }) {
 
     setSaving(true)
     setError('')
-    
+
     try {
       await onSave(form)
     } catch (err) {
@@ -143,15 +143,15 @@ function CardForm({ initial, onSave, onClose }) {
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>{initial ? 'Edit Card' : 'New Care Card'}</h2>
-        <button 
+        <button
           type="button"
-          onClick={onClose} 
-          style={{ 
-            border: 'none', 
-            background: 'transparent', 
+          onClick={onClose}
+          style={{
+            border: 'none',
+            background: 'transparent',
             fontSize: '1.5rem',
             cursor: 'pointer',
-            padding: '0.25rem'
+            padding: '0.25rem',
           }}
           aria-label="Close"
         >
@@ -165,7 +165,7 @@ function CardForm({ initial, onSave, onClose }) {
           color: '#dc2626',
           padding: '0.75rem',
           borderRadius: '0.5rem',
-          fontSize: '0.9rem'
+          fontSize: '0.9rem',
         }}>
           {error}
         </div>
@@ -289,7 +289,7 @@ function InteractionForm({ cardId, onSaved }) {
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
-    
+
     if (!form.notes.trim()) {
       alert('Please add interaction notes.')
       return
@@ -309,7 +309,6 @@ function InteractionForm({ cardId, onSaved }) {
 
       if (error) throw error
 
-      // Reset form
       setForm({
         type: 'Visit',
         notes: '',
@@ -335,7 +334,10 @@ function InteractionForm({ cardId, onSaved }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #d9e2d6' }}>
+    <form
+      onSubmit={handleSubmit}
+      style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #d9e2d6' }}
+    >
       <h3 style={{ marginTop: 0 }}>Add Interaction</h3>
 
       <div style={{ display: 'grid', gap: '1rem' }}>
@@ -397,9 +399,145 @@ function InteractionForm({ cardId, onSaved }) {
   )
 }
 
-function CareCard({ card, onClick }) {
+// ─── Inline edit form for an existing interaction ────────────────────────────
+function InteractionEditForm({ interaction, onSaved, onCancel }) {
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    type: interaction.type,
+    notes: interaction.notes,
+    interacted_at: getLocalDateTimeValue(new Date(interaction.interacted_at)),
+  })
+
+  const inputStyle = {
+    width: '100%',
+    padding: '0.75rem 1rem',
+    borderRadius: '0.8rem',
+    border: '1px solid #cfd8cc',
+    fontSize: '1rem',
+    background: 'white',
+    outline: 'none',
+  }
+
+  const handleSave = async () => {
+    if (!form.notes.trim()) {
+      alert('Notes are required.')
+      return
+    }
+    setSaving(true)
+    try {
+      const { error } = await supabase
+        .from('interactions')
+        .update({
+          type: form.type,
+          notes: form.notes.trim(),
+          interacted_at: new Date(form.interacted_at).toISOString(),
+        })
+        .eq('id', interaction.id)
+
+      if (error) throw error
+      await onSaved()
+    } catch (err) {
+      alert(err.message || 'Failed to update interaction')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{
+      background: '#eef4ee',
+      border: '1px solid #c4d4c7',
+      borderRadius: '0.75rem',
+      padding: '1rem',
+      display: 'grid',
+      gap: '0.75rem',
+    }}>
+      <div>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Type</label>
+        <select
+          style={inputStyle}
+          value={form.type}
+          onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
+        >
+          {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Date & Time</label>
+        <input
+          type="datetime-local"
+          style={inputStyle}
+          value={form.interacted_at}
+          onChange={(e) => setForm((p) => ({ ...p, interacted_at: e.target.value }))}
+        />
+      </div>
+
+      <div>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Notes</label>
+        <textarea
+          style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+          value={form.notes}
+          onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            background: '#4f6b57',
+            color: 'white',
+            border: 'none',
+            padding: '0.65rem 1.25rem',
+            borderRadius: '0.75rem',
+            fontWeight: '700',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            opacity: saving ? 0.7 : 1,
+            fontSize: '0.95rem',
+          }}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button
+          onClick={onCancel}
+          style={{
+            background: 'white',
+            color: '#5f6b63',
+            border: '1px solid #cfd8cc',
+            padding: '0.65rem 1.25rem',
+            borderRadius: '0.75rem',
+            fontWeight: '600',
+            cursor: 'pointer',
+            fontSize: '0.95rem',
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CareCard({ card, onClick, onComplete }) {
   const type = getCareType(card.care_type)
   const overdue = isNeedsAttention(card)
+  const isCompleted = card.status === 'completed'
+  const [completing, setCompleting] = useState(false)
+
+  const handleComplete = async (e) => {
+    e.stopPropagation()
+    if (!confirm('Mark this care card as complete? It will move to the Completed tab.')) return
+    setCompleting(true)
+    try {
+      await onComplete(card.id)
+    } finally {
+      setCompleting(false)
+    }
+  }
 
   return (
     <div
@@ -410,15 +548,18 @@ function CareCard({ card, onClick }) {
         if (e.key === 'Enter' || e.key === ' ') onClick()
       }}
       style={{
-        // PROMINENT CARD BOX
-        background: 'white',
-        border: overdue 
-          ? '4px solid #dc2626' 
+        background: isCompleted ? '#f3f7f1' : 'white',
+        border: isCompleted
+          ? '3px solid #a8c4ab'
+          : overdue
+          ? '4px solid #dc2626'
           : '3px solid #d9e2d6',
         borderRadius: '1.25rem',
         padding: '1.75rem 1.5rem',
-        boxShadow: overdue 
-          ? '0 20px 40px rgba(220, 38, 38, 0.15)' 
+        boxShadow: isCompleted
+          ? '0 8px 24px rgba(0,0,0,0.06)'
+          : overdue
+          ? '0 20px 40px rgba(220, 38, 38, 0.15)'
           : '0 16px 32px rgba(0, 0, 0, 0.12)',
         cursor: 'pointer',
         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -428,9 +569,10 @@ function CareCard({ card, onClick }) {
         gap: '1rem',
         position: 'relative',
         overflow: 'hidden',
+        opacity: isCompleted ? 0.85 : 1,
       }}
     >
-      {/* TOP BADGE - Makes it feel like a card */}
+      {/* TOP BADGE */}
       <div style={{
         position: 'absolute',
         top: '-1rem',
@@ -441,13 +583,30 @@ function CareCard({ card, onClick }) {
         boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
         fontWeight: '700',
         fontSize: '0.85rem',
-        color: overdue ? '#dc2626' : '#6f8f73',
+        color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73',
       }}>
         {type.label}
       </div>
 
-      {/* OVERDUE BADGE */}
-      {overdue && (
+      {/* STATUS BADGES */}
+      {isCompleted && (
+        <div style={{
+          position: 'absolute',
+          top: '1rem',
+          right: '1rem',
+          background: '#dcf0dc',
+          color: '#2d6a35',
+          padding: '0.4rem 0.8rem',
+          borderRadius: '999px',
+          fontSize: '0.8rem',
+          fontWeight: '800',
+          boxShadow: '0 4px 12px rgba(45,106,53,0.15)',
+        }}>
+          ✓ COMPLETED
+        </div>
+      )}
+
+      {!isCompleted && overdue && (
         <div style={{
           position: 'absolute',
           top: '1rem',
@@ -466,31 +625,28 @@ function CareCard({ card, onClick }) {
 
       {/* CONTENT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {/* NAME */}
-        <div style={{ 
-          fontSize: '1.25rem', 
-          fontWeight: '800', 
+        <div style={{
+          fontSize: '1.25rem',
+          fontWeight: '800',
           lineHeight: '1.3',
           color: '#1f2937',
-          marginTop: '0.25rem'
+          marginTop: '0.25rem',
         }}>
           {card.name}
         </div>
 
-        {/* TITLE */}
-        <div style={{ 
-          fontSize: '1.1rem', 
-          fontWeight: '700', 
+        <div style={{
+          fontSize: '1.1rem',
+          fontWeight: '700',
           color: '#374151',
           padding: '0.75rem 1rem',
-          background: overdue ? '#fef2f2' : '#f9fafb',
+          background: isCompleted ? '#eaf4ea' : overdue ? '#fef2f2' : '#f9fafb',
           borderRadius: '0.75rem',
-          borderLeft: `4px solid ${overdue ? '#dc2626' : '#6f8f73'}`,
+          borderLeft: `4px solid ${isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73'}`,
         }}>
           {card.care_title}
         </div>
 
-        {/* LOCATION & PHONE - BOTTOM BAR */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -503,37 +659,66 @@ function CareCard({ card, onClick }) {
           <div style={{ color: '#6b7280' }}>
             📍 {card.location || 'No location'}
           </div>
-          <div style={{ 
-            color: overdue ? '#dc2626' : '#6f8f73',
-            fontWeight: '600'
+          <div style={{
+            color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73',
+            fontWeight: '600',
           }}>
             Last: {formatDate(card.last_interaction_at)}
           </div>
         </div>
       </div>
 
-      {/* CARE TYPE TAG - BOTTOM LEFT */}
-      <div style={{
-        alignSelf: 'flex-start',
-        background: type.bg,
-        color: type.color,
-        padding: '0.4rem 1rem',
-        borderRadius: '999px',
-        fontSize: '0.85rem',
-        fontWeight: '700',
-        border: `1px solid ${type.color}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      }}>
-        {type.label} {card.status === 'completed' && '(Archived)'}
+      {/* BOTTOM ROW: type tag + complete button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{
+          background: type.bg,
+          color: type.color,
+          padding: '0.4rem 1rem',
+          borderRadius: '999px',
+          fontSize: '0.85rem',
+          fontWeight: '700',
+          border: `1px solid ${type.color}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        }}>
+          {type.label}
+        </div>
+
+        {/* Complete button — only on active cards */}
+        {!isCompleted && (
+          <button
+            onClick={handleComplete}
+            disabled={completing}
+            style={{
+              background: completing ? '#9ca3af' : '#4f6b57',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '999px',
+              fontSize: '0.85rem',
+              fontWeight: '700',
+              cursor: completing ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(79,107,87,0.25)',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {completing ? 'Completing...' : '✓ Complete'}
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
-function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
+function CardDetail({ card, onClose, refreshCards, onEdit }) {
   const [interactions, setInteractions] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
+  const [completing, setCompleting] = useState(false)
+  const [editingInteractionId, setEditingInteractionId] = useState(null)
+  const [deletingInteractionId, setDeletingInteractionId] = useState(null)
+
+  const isCompleted = card.status === 'completed'
 
   const loadInteractions = useCallback(async () => {
     setLoading(true)
@@ -559,7 +744,6 @@ function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
 
   const deleteCard = async () => {
     if (!confirm('Are you sure you want to delete this card? This cannot be undone.')) return
-
     setDeleting(true)
     try {
       const { error } = await supabase.from('care_cards').delete().eq('id', card.id)
@@ -573,33 +757,87 @@ function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
     }
   }
 
+  const completeCard = async () => {
+    if (!confirm('Mark this care card as complete? It will move to the Completed tab.')) return
+    setCompleting(true)
+    try {
+      const { error } = await supabase
+        .from('care_cards')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', card.id)
+      if (error) throw error
+      onClose()
+      refreshCards()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  const deleteInteraction = async (interactionId) => {
+    if (!confirm('Delete this interaction? This cannot be undone.')) return
+    setDeletingInteractionId(interactionId)
+    try {
+      const { error } = await supabase
+        .from('interactions')
+        .delete()
+        .eq('id', interactionId)
+      if (error) throw error
+      await loadInteractions()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setDeletingInteractionId(null)
+    }
+  }
+
   return (
     <Modal onClose={onClose} width="800px">
+      {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.75rem' }}>{card.name}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.75rem' }}>{card.name}</h2>
+            {isCompleted && (
+              <span style={{
+                background: '#dcf0dc',
+                color: '#2d6a35',
+                padding: '0.3rem 0.75rem',
+                borderRadius: '999px',
+                fontSize: '0.8rem',
+                fontWeight: '800',
+              }}>
+                ✓ COMPLETED
+              </span>
+            )}
+          </div>
           <div style={{ color: '#5f6b63', fontSize: '1.1rem', marginTop: '0.25rem' }}>
             {card.care_title}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {card.status === 'active' && (
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Complete button — only if still active */}
+          {!isCompleted && (
             <button
-              onClick={() => onComplete(card.id)}
+              onClick={completeCard}
+              disabled={completing}
               style={{
-                background: '#10b981',
+                background: completing ? '#9ca3af' : '#4f6b57',
                 color: 'white',
                 border: 'none',
                 padding: '0.75rem 1.25rem',
                 borderRadius: '0.75rem',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: completing ? 'not-allowed' : 'pointer',
+                opacity: completing ? 0.7 : 1,
               }}
             >
-              ✅ Complete
+              {completing ? 'Completing...' : '✓ Complete'}
             </button>
           )}
+
           <button
             onClick={() => onEdit(card)}
             style={{
@@ -631,14 +869,14 @@ function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
 
-          <button 
+          <button
             onClick={onClose}
-            style={{ 
-              border: 'none', 
-              background: 'transparent', 
+            style={{
+              border: 'none',
+              background: 'transparent',
               fontSize: '1.5rem',
               padding: '0.5rem',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
             aria-label="Close"
           >
@@ -647,21 +885,18 @@ function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
         </div>
       </div>
 
+      {/* INFO STRIP */}
       <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem' }}>
         <div style={{ fontSize: '1rem', color: '#5f6b63' }}>
           📞 {card.phone || 'No phone number'} • 📍 {card.location || 'No location'}
         </div>
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
-        {card.status === 'completed' && (
-          <div style={{ marginTop: '0.5rem', color: '#10b981', fontWeight: '600' }}>
-            ✅ Completed and archived
-          </div>
-        )}
       </div>
 
+      {/* INTERACTION HISTORY */}
       <div style={{ marginTop: '1.5rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Interaction History</h3>
-        
+
         {loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63' }}>
             Loading interactions...
@@ -673,33 +908,90 @@ function CardDetail({ card, onClose, refreshCards, onEdit, onComplete }) {
         ) : (
           <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
             {interactions.map((i) => (
-              <div
-                key={i.id}
-                style={{
-                  borderLeft: '4px solid #6f8f73',
-                  padding: '1rem 1.25rem',
-                  background: '#f8faf6',
-                  borderRadius: '0.75rem',
-                }}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: '0.5rem'
-                }}>
-                  <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{i.type}</div>
-                  <div style={{ fontSize: '0.85rem', color: '#5f6b63' }}>
-                    {formatDate(i.interacted_at)}
+              <div key={i.id}>
+                {editingInteractionId === i.id ? (
+                  <InteractionEditForm
+                    interaction={i}
+                    onSaved={async () => {
+                      setEditingInteractionId(null)
+                      await loadInteractions()
+                    }}
+                    onCancel={() => setEditingInteractionId(null)}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      borderLeft: '4px solid #6f8f73',
+                      padding: '1rem 1.25rem',
+                      background: '#f8faf6',
+                      borderRadius: '0.75rem',
+                    }}
+                  >
+                    {/* Top row: type + date + action buttons */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.5rem',
+                      gap: '0.5rem',
+                    }}>
+                      <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{i.type}</div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ fontSize: '0.85rem', color: '#5f6b63' }}>
+                          {formatDate(i.interacted_at)}
+                        </div>
+
+                        {/* Edit button */}
+                        <button
+                          onClick={() => setEditingInteractionId(i.id)}
+                          style={{
+                            background: '#eef4ee',
+                            color: '#4f6b57',
+                            border: '1px solid #c4d4c7',
+                            padding: '0.3rem 0.7rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+
+                        {/* Delete button */}
+                        <button
+                          onClick={() => deleteInteraction(i.id)}
+                          disabled={deletingInteractionId === i.id}
+                          style={{
+                            background: '#fee2e2',
+                            color: '#dc2626',
+                            border: '1px solid #fca5a5',
+                            padding: '0.3rem 0.7rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer',
+                            opacity: deletingInteractionId === i.id ? 0.6 : 1,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {deletingInteractionId === i.id ? '...' : '🗑 Delete'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>{i.notes}</div>
                   </div>
-                </div>
-                <div>{i.notes}</div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* Add interaction — available on both active and completed cards */}
       <InteractionForm cardId={card.id} onSaved={loadInteractions} />
     </Modal>
   )
@@ -717,9 +1009,9 @@ export default function Home() {
   const loadCards = useCallback(async () => {
     setLoading(true)
     setError('')
-    
+
     try {
-      // Get all care cards (both active and completed)
+      // Fetch ALL cards (active + completed)
       const { data: cardsData, error: cardsError } = await supabase
         .from('care_cards')
         .select('*')
@@ -727,10 +1019,9 @@ export default function Home() {
 
       if (cardsError) throw cardsError
 
-      // Get interactions for all cards to calculate last_interaction_at
       if (cardsData?.length > 0) {
-        const cardIds = cardsData.map(card => card.id)
-        
+        const cardIds = cardsData.map((card) => card.id)
+
         const { data: interactionsData, error: interactionsError } = await supabase
           .from('interactions')
           .select('care_card_id, interacted_at')
@@ -739,18 +1030,16 @@ export default function Home() {
 
         if (interactionsError) throw interactionsError
 
-        // Group interactions by card and get most recent
         const latestInteractions = {}
-        interactionsData?.forEach(interaction => {
+        interactionsData?.forEach((interaction) => {
           if (!latestInteractions[interaction.care_card_id]) {
             latestInteractions[interaction.care_card_id] = interaction.interacted_at
           }
         })
 
-        // Add last_interaction_at to each card
-        const cardsWithLastInteraction = cardsData.map(card => ({
+        const cardsWithLastInteraction = cardsData.map((card) => ({
           ...card,
-          last_interaction_at: latestInteractions[card.id] || null
+          last_interaction_at: latestInteractions[card.id] || null,
         }))
 
         setCards(cardsWithLastInteraction)
@@ -769,71 +1058,61 @@ export default function Home() {
     loadCards()
   }, [loadCards])
 
-  const activeCards = useMemo(() => cards.filter(c => c.status === 'active'), [cards])
-  const completedCards = useMemo(() => cards.filter(c => c.status === 'completed'), [cards])
-  const needsAttention = useMemo(() => 
-    activeCards.filter(isNeedsAttention), [activeCards]
-  )
+  // Complete a card directly from the grid
+  const handleComplete = useCallback(async (cardId) => {
+    try {
+      const { error } = await supabase
+        .from('care_cards')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', cardId)
+      if (error) throw error
+      await loadCards()
+    } catch (err) {
+      alert(err.message || 'Failed to complete card')
+    }
+  }, [loadCards])
+
+  const activeCards = useMemo(() => cards.filter((c) => c.status !== 'completed'), [cards])
+  const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
+  const needsAttention = useMemo(() => activeCards.filter(isNeedsAttention), [activeCards])
 
   const tabs = useMemo(() => [
-    { id: 'all', label: 'All Active', count: activeCards.length },
-    { id: 'archive', label: 'Archive', count: completedCards.length },
+    { id: 'all', label: 'All', count: activeCards.length },
     { id: 'medical', label: 'Medical', count: activeCards.filter((c) => c.care_type === 'medical').length },
     { id: 'grief', label: 'Grief', count: activeCards.filter((c) => c.care_type === 'grief').length },
     { id: 'pregnancy', label: 'Pregnancy', count: activeCards.filter((c) => c.care_type === 'pregnancy').length },
     { id: 'other', label: 'Other', count: activeCards.filter((c) => c.care_type === 'other').length },
     { id: 'followup', label: 'Needs Attention', count: needsAttention.length },
-  ], [activeCards.length, completedCards.length, needsAttention.length])
+    { id: 'completed', label: 'Completed', count: completedCards.length },
+  ], [activeCards, needsAttention, completedCards])
 
   const visibleCards = useMemo(() => {
     if (activeTab === 'all') return activeCards
-    if (activeTab === 'archive') return completedCards
     if (activeTab === 'followup') return needsAttention
+    if (activeTab === 'completed') return completedCards
     return activeCards.filter((c) => c.care_type === activeTab)
-  }, [activeCards, completedCards, needsAttention, activeTab])
+  }, [activeCards, needsAttention, completedCards, activeTab])
 
-const completeCard = async (cardId) => {
-  if (!confirm('Mark this card as completed and move to Archive?')) return
+  const saveCard = async (form) => {
+    try {
+      if (editingCard?.id) {
+        const { error } = await supabase
+          .from('care_cards')
+          .update({ ...form, updated_at: new Date().toISOString() })
+          .eq('id', editingCard.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('care_cards').insert([form])
+        if (error) throw error
+      }
 
-  try {
-    const { error } = await supabase
-      .from('care_cards')
-      .update({ 
-        status: 'completed'
-        // removed updated_at since column doesn't exist
-      })
-      .eq('id', cardId)
-
-    if (error) throw error
-    
-    // Reload cards
-    await loadCards()
-  } catch (error) {
-    alert('Failed to complete card: ' + error.message)
-  }
-}
-
-
-const saveCard = async (form) => {
-  try {
-    if (editingCard?.id) {
-      const { error } = await supabase
-        .from('care_cards')
-        .update({ ...form }) // removed updated_at
-        .eq('id', editingCard.id)
-      if (error) throw error
-    } else {
-      const { error } = await supabase.from('care_cards').insert([form])
-      if (error) throw error
+      setShowAddCard(false)
+      setEditingCard(null)
+      await loadCards()
+    } catch (error) {
+      throw new Error(error.message)
     }
-    
-    setShowAddCard(false)
-    setEditingCard(null)
-    await loadCards()
-  } catch (error) {
-    throw new Error(error.message)
   }
-}
 
   if (error) {
     return (
@@ -845,11 +1124,11 @@ const saveCard = async (form) => {
         background: '#f7f8f3',
         flexDirection: 'column',
         gap: '1rem',
-        padding: '2rem'
+        padding: '2rem',
       }}>
         <h1 style={{ color: '#dc2626' }}>Error</h1>
         <p>{error}</p>
-        <button 
+        <button
           onClick={loadCards}
           style={{
             background: '#6f8f73',
@@ -858,7 +1137,7 @@ const saveCard = async (form) => {
             border: 'none',
             borderRadius: '0.75rem',
             fontWeight: '600',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Try Again
@@ -922,70 +1201,83 @@ const saveCard = async (form) => {
         </div>
       </header>
 
+      {/* TABS */}
       <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '1rem 1.25rem',
-              borderRadius: '999px',
-              border: activeTab === tab.id ? '2px solid #6f8f73' : '1px solid #d9e2d6',
-              background: activeTab === tab.id ? '#6f8f73' : 'rgba(255,255,255,0.95)',
-              color: activeTab === tab.id ? 'white' : '#2f3a34',
-              fontWeight: '700',
-              fontSize: '1rem',
-              boxShadow: '0 6px 20px rgba(44, 57, 49, 0.08)',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.2s ease',
-              minHeight: '52px',
-            }}
-          >
-            {tab.label} ({tab.count})
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const isCompleted = tab.id === 'completed'
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '1rem 1.25rem',
+                borderRadius: '999px',
+                border: isActive
+                  ? `2px solid ${isCompleted ? '#4f6b57' : '#6f8f73'}`
+                  : '1px solid #d9e2d6',
+                background: isActive
+                  ? isCompleted ? '#4f6b57' : '#6f8f73'
+                  : 'rgba(255,255,255,0.95)',
+                color: isActive ? 'white' : '#2f3a34',
+                fontWeight: '700',
+                fontSize: '1rem',
+                boxShadow: '0 6px 20px rgba(44, 57, 49, 0.08)',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease',
+                minHeight: '52px',
+              }}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          )
+        })}
       </div>
 
       <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
         {loading ? (
-          <div style={{ 
-            padding: '4rem 2rem', 
-            textAlign: 'center', 
+          <div style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
             color: '#5f6b63',
-            fontSize: '1.1rem'
+            fontSize: '1.1rem',
           }}>
             Loading care cards...
           </div>
         ) : visibleCards.length === 0 ? (
-          <div style={{ 
-            padding: '4rem 2rem', 
-            textAlign: 'center', 
+          <div style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
             color: '#5f6b63',
             background: 'rgba(255,255,255,0.5)',
             borderRadius: '1rem',
-            border: '1px dashed #d9e2d6'
+            border: '1px dashed #d9e2d6',
           }}>
             <h3 style={{ marginBottom: '0.5rem' }}>
-              {activeTab === 'archive' ? 'No archived cards' : 'No cards yet'}
+              {activeTab === 'completed' ? 'No completed cards yet' : 'No cards yet'}
             </h3>
             <p>
-              {activeTab === 'archive' 
-                ? 'Complete some cards to see them here!' 
-                : 'Create your first care card above to get started!'
-              }
+              {activeTab === 'completed'
+                ? 'Cards marked complete will appear here.'
+                : 'Create your first care card above to get started!'}
             </p>
           </div>
         ) : (
-          <div 
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-              gap: '1.5rem' 
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              gap: '1.5rem',
             }}
           >
             {visibleCards.map((card) => (
-              <CareCard key={card.id} card={card} onClick={() => setSelectedCard(card)} />
+              <CareCard
+                key={card.id}
+                card={card}
+                onClick={() => setSelectedCard(card)}
+                onComplete={handleComplete}
+              />
             ))}
           </div>
         )}
@@ -1017,7 +1309,6 @@ const saveCard = async (form) => {
             setEditingCard(card)
             setShowAddCard(true)
           }}
-          onComplete={completeCard}
         />
       )}
     </div>
