@@ -13,7 +13,7 @@ const CARE_TYPES = [
 ]
 
 function getCareType(value) {
-  return CARE_TYPES.find((t) => t.value === value) || CARE_TYPES[3]
+  return CARE_TYPES.find((t) => t.value === value) || CARE_TYPES[CARE_TYPES.length - 1]
 }
 
 function formatDate(date) {
