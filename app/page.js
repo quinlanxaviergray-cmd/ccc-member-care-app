@@ -13,7 +13,7 @@ const CARE_TYPES = [
 ]
 
 function getCareType(value) {
-  return CARE_TYPES.find((t) => t.value === value) || CARE_TYPES[CARE_TYPES.length - 1]
+  return CARE_TYPES.find((t) => t.value === value) || CARE_TYPES[3]
 }
 
 function formatDate(date) {
@@ -704,7 +704,7 @@ function CareCard({ card, onClick, onComplete }) {
               whiteSpace: 'nowrap',
             }}
           >
-            {completing ? 'Completing...' : '✓ Complete'}
+            {completing ? 'Completing...' : '✓ Click to Complete'}
           </button>
         )}
       </div>
@@ -836,7 +836,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                 opacity: completing ? 0.7 : 1,
               }}
             >
-              {completing ? 'Completing...' : '✓ Complete'}
+              {completing ? 'Completing...' : '✓ Click to Complete'}
             </button>
           )}
 
