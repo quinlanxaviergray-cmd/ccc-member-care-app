@@ -4,9 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
 const CARE_TYPES = [
-  { value: 'medical', label: 'Medical', color: '#7a4a35', bg: '#efe1da' },
+  { value: 'short_term_medical', label: 'Short-Term Medical', color: '#7a4a35', bg: '#efe1da' },
+  { value: 'long_term_medical', label: 'Long-Term Medical', color: '#a0522d', bg: '#f5e6dc' },
   { value: 'grief', label: 'Grief', color: '#4f6b57', bg: '#e3ece5' },
   { value: 'pregnancy', label: 'Pregnancy', color: '#8c7740', bg: '#f4ecd7' },
+  { value: 'homebound', label: 'Homebound', color: '#5a4a7a', bg: '#eae4f4' },
   { value: 'other', label: 'Other', color: '#3f4a56', bg: '#e6ebf0' },
 ]
 
@@ -94,7 +96,7 @@ function CardForm({ initial, onSave, onClose }) {
     initial || {
       name: '',
       phone: '',
-      care_type: 'medical',
+      care_type: 'short_term_medical',
       care_title: '',
       location: '',
       notes: '',
@@ -1078,9 +1080,11 @@ export default function Home() {
 
   const tabs = useMemo(() => [
     { id: 'all', label: 'All', count: activeCards.length },
-    { id: 'medical', label: 'Medical', count: activeCards.filter((c) => c.care_type === 'medical').length },
+    { id: 'short_term_medical', label: 'Short-Term Medical', count: activeCards.filter((c) => c.care_type === 'short_term_medical').length },
+    { id: 'long_term_medical', label: 'Long-Term Medical', count: activeCards.filter((c) => c.care_type === 'long_term_medical').length },
     { id: 'grief', label: 'Grief', count: activeCards.filter((c) => c.care_type === 'grief').length },
     { id: 'pregnancy', label: 'Pregnancy', count: activeCards.filter((c) => c.care_type === 'pregnancy').length },
+    { id: 'homebound', label: 'Homebound', count: activeCards.filter((c) => c.care_type === 'homebound').length },
     { id: 'other', label: 'Other', count: activeCards.filter((c) => c.care_type === 'other').length },
     { id: 'followup', label: 'Needs Attention', count: needsAttention.length },
     { id: 'completed', label: 'Completed', count: completedCards.length },
