@@ -670,17 +670,17 @@ function CareCard({ card, onClick, onComplete }) {
         </div>
       </div>
 
-      {/* BOTTOM ROW: type tag + complete button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* BOTTOM STACK: category tag on top, complete button below */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <div style={{
           background: type.bg,
           color: type.color,
-          padding: '0.4rem 1rem',
+          padding: '0.25rem 0.75rem',
           borderRadius: '999px',
-          fontSize: '0.85rem',
+          fontSize: '0.78rem',
           fontWeight: '700',
           border: `1px solid ${type.color}`,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          alignSelf: 'flex-start',
         }}>
           {type.label}
         </div>
@@ -694,13 +694,13 @@ function CareCard({ card, onClick, onComplete }) {
               background: completing ? '#9ca3af' : '#4f6b57',
               color: 'white',
               border: 'none',
-              padding: '0.5rem 1rem',
+              padding: '0.3rem 0.75rem',
               borderRadius: '999px',
-              fontSize: '0.85rem',
+              fontSize: '0.78rem',
               fontWeight: '700',
               cursor: completing ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 12px rgba(79,107,87,0.25)',
               transition: 'all 0.2s ease',
+              alignSelf: 'flex-start',
               whiteSpace: 'nowrap',
             }}
           >
