@@ -65,8 +65,9 @@ function Modal({ children, onClose, width = '600px' }) {
         zIndex: 100,
       }}
     >
+      {/* Desktop modal */}
       <div
-        className="modal-content"
+        className="modal-content modal-desktop"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -82,6 +83,27 @@ function Modal({ children, onClose, width = '600px' }) {
           border: '1px solid #d9e2d6',
         }}
       >
+        {children}
+      </div>
+
+      {/* Mobile bottom sheet */}
+      <div
+        className="modal-content modal-mobile"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        style={{
+          display: 'none',
+        }}
+      >
+        {/* Drag handle */}
+        <div style={{
+          width: '40px',
+          height: '4px',
+          background: '#c4d4c7',
+          borderRadius: '999px',
+          margin: '0 auto 1rem',
+        }} />
         {children}
       </div>
     </div>
@@ -799,6 +821,30 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
 
   return (
     <Modal onClose={onClose} width="800px">
+      {/* Mobile close button — top left */}
+      <button
+        className="close-btn-mobile"
+        onClick={onClose}
+        style={{
+          display: 'none',
+          alignItems: 'center',
+          gap: '0.4rem',
+          border: 'none',
+          background: '#eef4ee',
+          color: '#4f6b57',
+          fontWeight: '700',
+          fontSize: '0.9rem',
+          padding: '0.5rem 1rem',
+          borderRadius: '999px',
+          cursor: 'pointer',
+          marginBottom: '1rem',
+          border: '1px solid #c4d4c7',
+        }}
+        aria-label="Close"
+      >
+        ← Close
+      </button>
+
       {/* HEADER */}
       <div className="card-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
         <div>
@@ -875,6 +921,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           </button>
 
           <button
+            className="close-btn-desktop"
             onClick={onClose}
             style={{
               border: 'none',
@@ -932,62 +979,70 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                       borderRadius: '0.75rem',
                     }}
                   >
-                    {/* Top row: type + date + action buttons */}
-                    <div className="interaction-row" style={{
+                    {/* Line 1: type + date */}
+                    <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       marginBottom: '0.5rem',
-                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                      gap: '0.25rem',
                     }}>
-                      <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{i.type}</div>
-
-                      <div className="interaction-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ fontSize: '0.85rem', color: '#5f6b63' }}>
-                          {formatDate(i.interacted_at)}
-                        </div>
-
-                        {/* Edit button */}
-                        <button
-                          onClick={() => setEditingInteractionId(i.id)}
-                          style={{
-                            background: '#eef4ee',
-                            color: '#4f6b57',
-                            border: '1px solid #c4d4c7',
-                            padding: '0.3rem 0.7rem',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-
-                        {/* Delete button */}
-                        <button
-                          onClick={() => deleteInteraction(i.id)}
-                          disabled={deletingInteractionId === i.id}
-                          style={{
-                            background: '#fee2e2',
-                            color: '#dc2626',
-                            border: '1px solid #fca5a5',
-                            padding: '0.3rem 0.7rem',
-                            borderRadius: '0.5rem',
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer',
-                            opacity: deletingInteractionId === i.id ? 0.6 : 1,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {deletingInteractionId === i.id ? '...' : '🗑 Delete'}
-                        </button>
+                      <div style={{ fontWeight: '800', fontSize: '1rem', color: '#1f2937' }}>{i.type}</div>
+                      <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>
+                        {formatDate(i.interacted_at)}
                       </div>
                     </div>
 
-                    <div>{i.notes}</div>
+                    {/* Line 2: notes */}
+                    <div style={{
+                      fontSize: '0.95rem',
+                      color: '#374151',
+                      lineHeight: '1.5',
+                      marginBottom: '0.75rem',
+                      paddingBottom: '0.75rem',
+                      borderBottom: '1px solid #e5ede6',
+                    }}>
+                      {i.notes}
+                    </div>
+
+                    {/* Line 3: edit + delete buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => setEditingInteractionId(i.id)}
+                        style={{
+                          background: '#eef4ee',
+                          color: '#4f6b57',
+                          border: '1px solid #c4d4c7',
+                          padding: '0.35rem 0.85rem',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.82rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        onClick={() => deleteInteraction(i.id)}
+                        disabled={deletingInteractionId === i.id}
+                        style={{
+                          background: '#fee2e2',
+                          color: '#dc2626',
+                          border: '1px solid #fca5a5',
+                          padding: '0.35rem 0.85rem',
+                          borderRadius: '0.5rem',
+                          fontSize: '0.82rem',
+                          fontWeight: '600',
+                          cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer',
+                          opacity: deletingInteractionId === i.id ? 0.6 : 1,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {deletingInteractionId === i.id ? '...' : '🗑 Delete'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1196,6 +1251,31 @@ export default function Home() {
             display: block !important;
           }
           .tabs-desktop {
+            display: none !important;
+          }
+          .modal-overlay {
+            align-items: flex-end !important;
+            padding: 0 !important;
+          }
+          .modal-desktop {
+            display: none !important;
+          }
+          .modal-mobile {
+            display: block !important;
+            width: 100% !important;
+            max-height: 92vh !important;
+            overflow-y: auto !important;
+            background: #fbfaf7 !important;
+            border-radius: 1.25rem 1.25rem 0 0 !important;
+            padding: 1rem 1rem 2rem !important;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.18) !important;
+            border: 1px solid #d9e2d6 !important;
+            border-bottom: none !important;
+          }
+          .close-btn-mobile {
+            display: flex !important;
+          }
+          .close-btn-desktop {
             display: none !important;
           }
           .cards-grid {
