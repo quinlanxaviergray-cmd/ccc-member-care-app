@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Member Care',
+  title: 'BurdenBear',
   description: 'Church member care tracker',
 }
 
