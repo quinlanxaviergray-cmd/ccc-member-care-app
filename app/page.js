@@ -1,7 +1,8 @@
 "use client";
-
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+
+const SITE_FONT = 'Avenir Next, Avenir, Helvetica, Arial, sans-serif'
 
 const CARE_TYPES = [
   { value: 'short_term_medical', label: 'Short-Term Medical', color: '#7a4a35', bg: '#efe1da' },
@@ -28,22 +29,35 @@ function formatDate(date) {
 function isNeedsAttention(card) {
   if (card.status === 'completed') return false
   if (!card.last_interaction_at) return true
-
   const last = new Date(card.last_interaction_at)
   const now = new Date()
-
   if (card.follow_up_interval === 'daily') {
     const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
     const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     return todayDate > lastDate
   }
-
   const diffMs = now - last
   const diffDays = diffMs / (1000 * 60 * 60 * 24)
-
   if (card.follow_up_interval === 'weekly') return diffDays >= 7
   if (card.follow_up_interval === 'monthly') return diffDays >= 30
+  return false
+}
 
+// Returns true if the card will need attention within the next 7 days but is NOT yet overdue
+function isUpcomingSoon(card) {
+  if (card.status === 'completed') return false
+  if (isNeedsAttention(card)) return false
+  if (!card.last_interaction_at) return false
+  const last = new Date(card.last_interaction_at)
+  const now = new Date()
+  const diffMs = now - last
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+  if (card.follow_up_interval === 'daily') {
+    // daily cards become overdue the next calendar day, so "soon" doesn't really apply
+    return false
+  }
+  if (card.follow_up_interval === 'weekly') return diffDays >= 0 && 7 - diffDays <= 7 && diffDays < 7
+  if (card.follow_up_interval === 'monthly') return diffDays >= 23 && diffDays < 30
   return false
 }
 
@@ -86,11 +100,11 @@ function Modal({ children, onClose, width = '600px' }) {
           borderRadius: '1.25rem',
           padding: '1.5rem',
           border: '1px solid #d9e2d6',
+          fontFamily: SITE_FONT,
         }}
       >
         {children}
       </div>
-
       <div
         className="modal-content modal-mobile"
         onClick={(e) => e.stopPropagation()}
@@ -114,7 +128,6 @@ function Modal({ children, onClose, width = '600px' }) {
 function CardForm({ initial, onSave, onClose }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
   const [form, setForm] = useState(
     initial || {
       name: '',
@@ -159,33 +172,31 @@ function CardForm({ initial, onSave, onClose }) {
     background: 'white',
     outline: 'none',
     boxSizing: 'border-box',
-    fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
+    fontFamily: SITE_FONT,
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontFamily: SITE_FONT }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>{initial ? 'Edit Card' : 'New Care Card'}</h2>
-        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', padding: '0.25rem' }} aria-label="Close">✕</button>
+        <h2 style={{ margin: 0, fontFamily: SITE_FONT }}>{initial ? 'Edit Card' : 'New Care Card'}</h2>
+        <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', cursor: 'pointer', padding: '0.25rem', fontFamily: SITE_FONT }} aria-label="Close">✕</button>
       </div>
-
       {error && (
-        <div style={{ background: '#fee2e2', color: '#dc2626', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem' }}>
+        <div style={{ background: '#fee2e2', color: '#dc2626', padding: '0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem', fontFamily: SITE_FONT }}>
           {error}
         </div>
       )}
-
       <div style={{ display: 'grid', gap: '1rem' }}>
         <div>
-          <label htmlFor="name">Member Name *</label>
+          <label htmlFor="name" style={{ fontFamily: SITE_FONT }}>Member Name *</label>
           <input id="name" style={inputStyle} placeholder="Member Name" value={form.name} onChange={(e) => update('name', e.target.value)} required />
         </div>
         <div>
-          <label htmlFor="phone">Phone Number</label>
+          <label htmlFor="phone" style={{ fontFamily: SITE_FONT }}>Phone Number</label>
           <input id="phone" style={inputStyle} placeholder="Phone Number" value={form.phone} onChange={(e) => update('phone', e.target.value)} />
         </div>
         <div>
-          <label htmlFor="care_type">Care Type</label>
+          <label htmlFor="care_type" style={{ fontFamily: SITE_FONT }}>Care Type</label>
           <select id="care_type" style={inputStyle} value={form.care_type} onChange={(e) => update('care_type', e.target.value)}>
             {CARE_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
@@ -193,19 +204,19 @@ function CardForm({ initial, onSave, onClose }) {
           </select>
         </div>
         <div>
-          <label htmlFor="care_title">Care Title *</label>
+          <label htmlFor="care_title" style={{ fontFamily: SITE_FONT }}>Care Title *</label>
           <input id="care_title" style={inputStyle} placeholder="Care Title" value={form.care_title} onChange={(e) => update('care_title', e.target.value)} required />
         </div>
         <div>
-          <label htmlFor="location">Location</label>
+          <label htmlFor="location" style={{ fontFamily: SITE_FONT }}>Location</label>
           <input id="location" style={inputStyle} placeholder="Location" value={form.location} onChange={(e) => update('location', e.target.value)} />
         </div>
         <div>
-          <label htmlFor="notes">Notes</label>
+          <label htmlFor="notes" style={{ fontFamily: SITE_FONT }}>Notes</label>
           <textarea id="notes" style={{ ...inputStyle, minHeight: '110px', resize: 'vertical' }} placeholder="Notes" value={form.notes} onChange={(e) => update('notes', e.target.value)} />
         </div>
         <div>
-          <label htmlFor="follow_up">Follow-up Frequency</label>
+          <label htmlFor="follow_up" style={{ fontFamily: SITE_FONT }}>Follow-up Frequency</label>
           <select id="follow_up" style={inputStyle} value={form.follow_up_interval} onChange={(e) => update('follow_up_interval', e.target.value)}>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
@@ -215,7 +226,7 @@ function CardForm({ initial, onSave, onClose }) {
         <button
           type="submit"
           disabled={saving || !form.name.trim() || !form.care_title.trim()}
-          style={{ background: '#6f8f73', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', fontSize: '1rem', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
+          style={{ background: '#6f8f73', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', fontSize: '1rem', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: SITE_FONT }}
         >
           {saving ? 'Saving...' : 'Save Card'}
         </button>
@@ -245,14 +256,14 @@ function InteractionForm({ cardId, onSaved }) {
     }
   }
 
-  const inputStyle = { width: '100%', padding: '0.95rem 1rem', borderRadius: '0.8rem', border: '1px solid #cfd8cc', fontSize: '1rem', background: 'white', outline: 'none', boxSizing: 'border-box', fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif' }
+  const inputStyle = { width: '100%', padding: '0.95rem 1rem', borderRadius: '0.8rem', border: '1px solid #cfd8cc', fontSize: '1rem', background: 'white', outline: 'none', boxSizing: 'border-box', fontFamily: SITE_FONT }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #d9e2d6' }}>
-      <h3 style={{ marginTop: 0 }}>Add Interaction</h3>
+    <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #d9e2d6', fontFamily: SITE_FONT }}>
+      <h3 style={{ marginTop: 0, fontFamily: SITE_FONT }}>Add Interaction</h3>
       <div style={{ display: 'grid', gap: '1rem' }}>
         <div>
-          <label htmlFor="interaction-type">Type</label>
+          <label htmlFor="interaction-type" style={{ fontFamily: SITE_FONT }}>Type</label>
           <select id="interaction-type" style={inputStyle} value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}>
             {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((type) => (
               <option key={type} value={type}>{type}</option>
@@ -260,14 +271,14 @@ function InteractionForm({ cardId, onSaved }) {
           </select>
         </div>
         <div>
-          <label htmlFor="interaction-date">Date & Time</label>
+          <label htmlFor="interaction-date" style={{ fontFamily: SITE_FONT }}>Date & Time</label>
           <input id="interaction-date" type="datetime-local" style={inputStyle} value={form.interacted_at} onChange={(e) => setForm((prev) => ({ ...prev, interacted_at: e.target.value }))} />
         </div>
         <div>
-          <label htmlFor="interaction-notes">Notes *</label>
+          <label htmlFor="interaction-notes" style={{ fontFamily: SITE_FONT }}>Notes *</label>
           <textarea id="interaction-notes" style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }} placeholder="Write notes about this interaction" value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} required />
         </div>
-        <button type="submit" disabled={saving} style={{ background: '#4f6b57', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+        <button type="submit" disabled={saving} style={{ background: '#4f6b57', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: SITE_FONT }}>
           {saving ? 'Saving...' : 'Add Interaction'}
         </button>
       </div>
@@ -278,8 +289,7 @@ function InteractionForm({ cardId, onSaved }) {
 function InteractionEditForm({ interaction, onSaved, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ type: interaction.type, notes: interaction.notes, interacted_at: getLocalDateTimeValue(new Date(interaction.interacted_at)) })
-
-  const inputStyle = { width: '100%', padding: '0.75rem 1rem', borderRadius: '0.8rem', border: '1px solid #cfd8cc', fontSize: '1rem', background: 'white', outline: 'none', boxSizing: 'border-box', fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif' }
+  const inputStyle = { width: '100%', padding: '0.75rem 1rem', borderRadius: '0.8rem', border: '1px solid #cfd8cc', fontSize: '1rem', background: 'white', outline: 'none', boxSizing: 'border-box', fontFamily: SITE_FONT }
 
   const handleSave = async () => {
     if (!form.notes.trim()) { alert('Notes are required.'); return }
@@ -296,9 +306,9 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
   }
 
   return (
-    <div style={{ background: '#eef4ee', border: '1px solid #c4d4c7', borderRadius: '0.75rem', padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+    <div style={{ background: '#eef4ee', border: '1px solid #c4d4c7', borderRadius: '0.75rem', padding: '1rem', display: 'grid', gap: '0.75rem', fontFamily: SITE_FONT }}>
       <div>
-        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Type</label>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57', fontFamily: SITE_FONT }}>Type</label>
         <select style={inputStyle} value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}>
           {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -306,18 +316,18 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
         </select>
       </div>
       <div>
-        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Date & Time</label>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57', fontFamily: SITE_FONT }}>Date & Time</label>
         <input type="datetime-local" style={inputStyle} value={form.interacted_at} onChange={(e) => setForm((p) => ({ ...p, interacted_at: e.target.value }))} />
       </div>
       <div>
-        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57' }}>Notes</label>
+        <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57', fontFamily: SITE_FONT }}>Notes</label>
         <textarea style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} />
       </div>
       <div style={{ display: 'flex', gap: '0.75rem' }}>
-        <button onClick={handleSave} disabled={saving} style={{ background: '#4f6b57', color: 'white', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '0.75rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontSize: '0.95rem' }}>
+        <button onClick={handleSave} disabled={saving} style={{ background: '#4f6b57', color: 'white', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '0.75rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontSize: '0.95rem', fontFamily: SITE_FONT }}>
           {saving ? 'Saving...' : 'Save'}
         </button>
-        <button onClick={onCancel} style={{ background: 'white', color: '#5f6b63', border: '1px solid #cfd8cc', padding: '0.65rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem' }}>
+        <button onClick={onCancel} style={{ background: 'white', color: '#5f6b63', border: '1px solid #cfd8cc', padding: '0.65rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem', fontFamily: SITE_FONT }}>
           Cancel
         </button>
       </div>
@@ -325,9 +335,10 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
   )
 }
 
-function CareCard({ card, onClick, onComplete }) {
+function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   const type = getCareType(card.care_type)
   const overdue = isNeedsAttention(card)
+  const soon = showYellowSoon && !overdue && isUpcomingSoon(card)
   const isCompleted = card.status === 'completed'
   const [completing, setCompleting] = useState(false)
 
@@ -338,6 +349,24 @@ function CareCard({ card, onClick, onComplete }) {
     try { await onComplete(card.id) } finally { setCompleting(false) }
   }
 
+  // Determine border color & indicator color
+  let borderColor = '#d9e2d6'
+  let borderWidth = '1px'
+  if (isCompleted) { borderColor = '#a8c4ab'; borderWidth = '1px' }
+  else if (overdue) { borderColor = '#dc2626'; borderWidth = '3px' }
+  else if (soon) { borderColor = '#d97706'; borderWidth = '3px' }
+
+  let indicatorBg = '#f9fafb'
+  let indicatorBorder = '#6f8f73'
+  if (isCompleted) { indicatorBg = '#eaf4ea'; indicatorBorder = '#4f6b57' }
+  else if (overdue) { indicatorBg = '#fef2f2'; indicatorBorder = '#dc2626' }
+  else if (soon) { indicatorBg = '#fffbeb'; indicatorBorder = '#d97706' }
+
+  let lastContactColor = '#6f8f73'
+  if (isCompleted) lastContactColor = '#4f6b57'
+  else if (overdue) lastContactColor = '#dc2626'
+  else if (soon) lastContactColor = '#d97706'
+
   return (
     <div
       role="button"
@@ -346,7 +375,7 @@ function CareCard({ card, onClick, onComplete }) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
       style={{
         background: isCompleted ? '#f3f7f1' : 'white',
-        border: isCompleted ? '1px solid #a8c4ab' : overdue ? '1px solid #dc2626' : '1px solid #d9e2d6',
+        border: `${borderWidth} solid ${borderColor}`,
         borderRadius: '1.25rem',
         padding: '1.75rem 1.5rem',
         cursor: 'pointer',
@@ -356,22 +385,34 @@ function CareCard({ card, onClick, onComplete }) {
         flexDirection: 'column',
         gap: '1rem',
         position: 'relative',
-        overflow: 'hidden',
+        // No overflow:hidden — that was clipping the top label and causing the "red bubble" glitch
         opacity: isCompleted ? 0.9 : 1,
         boxShadow: 'none',
-        fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
+        fontFamily: SITE_FONT,
       }}
     >
-      <div style={{ position: 'absolute', top: '-1rem', left: '1.5rem', background: 'white', padding: '0 1rem 0 0.75rem', borderRadius: '0 1rem 1rem 0', fontWeight: '700', fontSize: '0.85rem', color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73' }}>
+      {/* Category label — positioned so it doesn't peek above the card border */}
+      <div style={{
+        position: 'absolute',
+        top: '0.75rem',
+        left: '1.25rem',
+        background: isCompleted ? '#eaf4ea' : overdue ? '#fef2f2' : soon ? '#fffbeb' : '#f4f7f2',
+        padding: '0.2rem 0.65rem',
+        borderRadius: '0.5rem',
+        fontWeight: '400',
+        fontSize: '0.78rem',
+        color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : soon ? '#d97706' : '#6f8f73',
+        fontFamily: SITE_FONT,
+        border: `1px solid ${isCompleted ? '#a8c4ab' : overdue ? '#fca5a5' : soon ? '#fcd34d' : '#d9e2d6'}`,
+      }}>
         {type.label}
       </div>
 
       {isCompleted && (
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#dcf0dc', color: '#2d6a35', padding: '0.4rem 0.8rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800' }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#dcf0dc', color: '#2d6a35', padding: '0.4rem 0.8rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', fontFamily: SITE_FONT }}>
           ✓ COMPLETED
         </div>
       )}
-
       {!isCompleted && overdue && (
         <div style={{
           position: 'absolute', top: '1rem', right: '1rem',
@@ -385,31 +426,44 @@ function CareCard({ card, onClick, onComplete }) {
           ⏰
         </div>
       )}
+      {!isCompleted && soon && (
+        <div style={{
+          position: 'absolute', top: '1rem', right: '1rem',
+          width: '32px', height: '32px',
+          background: '#fffbeb',
+          border: '1px solid #d97706',
+          borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1rem', flexShrink: 0,
+        }}>
+          🕐
+        </div>
+      )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: '1.3', color: '#1f2937', marginTop: '0.25rem' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
+        <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: '1.3', color: '#1f2937', fontFamily: SITE_FONT }}>
           {card.name}
         </div>
-
         <div style={{
           fontSize: '1.1rem', fontWeight: '700', color: '#374151',
-          padding: '0.75rem 1rem', background: isCompleted ? '#eaf4ea' : overdue ? '#fef2f2' : '#f9fafb',
-          borderRadius: '0.75rem', borderLeft: `4px solid ${isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73'}`,
+          padding: '0.75rem 1rem', background: indicatorBg,
+          borderRadius: '0.75rem', borderLeft: `4px solid ${indicatorBorder}`,
+          fontFamily: SITE_FONT,
         }}>
           {card.care_title}
         </div>
-
         <div style={{
           display: 'flex', flexDirection: 'column', gap: '0.35rem',
           padding: '0.75rem 0 0.25rem 0',
           borderTop: '1px solid #e5e7eb',
           marginTop: 'auto',
           fontSize: '0.95rem',
+          fontFamily: SITE_FONT,
         }}>
           <div style={{ color: '#6b7280' }}>
             📍 {card.location || 'No location'}
           </div>
-          <div style={{ color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : '#6f8f73', fontWeight: '600' }}>
+          <div style={{ color: lastContactColor, fontWeight: '600', fontFamily: SITE_FONT }}>
             Last contacted: {formatDate(card.last_interaction_at)}
           </div>
         </div>
@@ -419,13 +473,13 @@ function CareCard({ card, onClick, onComplete }) {
         <div style={{
           background: type.bg, color: type.color,
           padding: '0.5rem 1rem', borderRadius: '0.6rem',
-          fontSize: '0.9rem', fontWeight: '700',
+          fontSize: '0.9rem', fontWeight: '400',
           border: `1px solid ${type.color}`,
           textAlign: 'center', width: '100%', boxSizing: 'border-box',
+          fontFamily: SITE_FONT,
         }}>
           {type.label}
         </div>
-
         {!isCompleted && (
           <button
             onClick={handleComplete}
@@ -437,6 +491,7 @@ function CareCard({ card, onClick, onComplete }) {
               fontSize: '0.9rem', fontWeight: '700',
               cursor: completing ? 'not-allowed' : 'pointer',
               width: '100%', textAlign: 'center', boxSizing: 'border-box',
+              fontFamily: SITE_FONT,
             }}
           >
             {completing ? 'Completing...' : '✓ Click to Complete'}
@@ -454,7 +509,6 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
   const [completing, setCompleting] = useState(false)
   const [editingInteractionId, setEditingInteractionId] = useState(null)
   const [deletingInteractionId, setDeletingInteractionId] = useState(null)
-
   const isCompleted = card.status === 'completed'
 
   const loadInteractions = useCallback(async () => {
@@ -504,46 +558,42 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
 
   return (
     <Modal onClose={onClose} width="800px">
-      <button className="close-btn-mobile" onClick={onClose} style={{ display: 'none', alignItems: 'center', gap: '0.4rem', border: '1px solid #c4d4c7', background: '#eef4ee', color: '#4f6b57', fontWeight: '700', fontSize: '0.9rem', padding: '0.5rem 1rem', borderRadius: '999px', cursor: 'pointer', marginBottom: '1rem' }} aria-label="Close">
+      <button className="close-btn-mobile" onClick={onClose} style={{ display: 'none', alignItems: 'center', gap: '0.4rem', border: '1px solid #c4d4c7', background: '#eef4ee', color: '#4f6b57', fontWeight: '700', fontSize: '0.9rem', padding: '0.5rem 1rem', borderRadius: '999px', cursor: 'pointer', marginBottom: '1rem', fontFamily: SITE_FONT }} aria-label="Close">
         ← Close
       </button>
-
-      <div className="card-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
+      <div className="card-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', fontFamily: SITE_FONT }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <h2 style={{ margin: 0, fontSize: '1.75rem' }}>{card.name}</h2>
+            <h2 style={{ margin: 0, fontSize: '1.75rem', fontFamily: SITE_FONT }}>{card.name}</h2>
             {isCompleted && (
-              <span style={{ background: '#dcf0dc', color: '#2d6a35', padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800' }}>✓ COMPLETED</span>
+              <span style={{ background: '#dcf0dc', color: '#2d6a35', padding: '0.3rem 0.75rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', fontFamily: SITE_FONT }}>✓ COMPLETED</span>
             )}
           </div>
-          <div style={{ color: '#5f6b63', fontSize: '1.1rem', marginTop: '0.25rem' }}>{card.care_title}</div>
+          <div style={{ color: '#5f6b63', fontSize: '1.1rem', marginTop: '0.25rem', fontFamily: SITE_FONT }}>{card.care_title}</div>
         </div>
-
         <div className="card-detail-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {!isCompleted && (
-            <button onClick={completeCard} disabled={completing} style={{ background: completing ? '#9ca3af' : '#4f6b57', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: completing ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1 }}>
+            <button onClick={completeCard} disabled={completing} style={{ background: completing ? '#9ca3af' : '#4f6b57', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: completing ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1, fontFamily: SITE_FONT }}>
               {completing ? 'Completing...' : '✓ Click to Complete'}
             </button>
           )}
-          <button onClick={() => onEdit(card)} style={{ background: '#6f8f73', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer' }}>Edit</button>
-          <button onClick={deleteCard} disabled={deleting} style={{ background: deleting ? '#9ca3af' : '#dc2626', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: deleting ? 'not-allowed' : 'pointer' }}>
+          <button onClick={() => onEdit(card)} style={{ background: '#6f8f73', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontFamily: SITE_FONT }}>Edit</button>
+          <button onClick={deleteCard} disabled={deleting} style={{ background: deleting ? '#9ca3af' : '#dc2626', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: deleting ? 'not-allowed' : 'pointer', fontFamily: SITE_FONT }}>
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
-          <button className="close-btn-desktop" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', padding: '0.5rem', cursor: 'pointer' }} aria-label="Close">✕</button>
+          <button className="close-btn-desktop" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', padding: '0.5rem', cursor: 'pointer', fontFamily: SITE_FONT }} aria-label="Close">✕</button>
         </div>
       </div>
-
-      <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem' }}>
+      <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
         <div style={{ fontSize: '1rem', color: '#5f6b63' }}>📞 {card.phone || 'No phone number'} • 📍 {card.location || 'No location'}</div>
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
       </div>
-
-      <div style={{ marginTop: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Interaction History</h3>
+      <div style={{ marginTop: '1.5rem', fontFamily: SITE_FONT }}>
+        <h3 style={{ marginBottom: '1rem', fontFamily: SITE_FONT }}>Interaction History</h3>
         {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63' }}>Loading interactions...</div>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63', fontFamily: SITE_FONT }}>Loading interactions...</div>
         ) : interactions.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63', fontStyle: 'italic' }}>No interactions yet. Add one below!</div>
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63', fontStyle: 'italic', fontFamily: SITE_FONT }}>No interactions yet. Add one below!</div>
         ) : (
           <div style={{ display: 'grid', gap: '1rem', marginBottom: '1.5rem' }}>
             {interactions.map((i) => (
@@ -551,15 +601,16 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                 {editingInteractionId === i.id ? (
                   <InteractionEditForm interaction={i} onSaved={async () => { setEditingInteractionId(null); await loadInteractions() }} onCancel={() => setEditingInteractionId(null)} />
                 ) : (
-                  <div style={{ borderLeft: '4px solid #6f8f73', padding: '1rem 1.25rem', background: '#f8faf6', borderRadius: '0.75rem' }}>
+                  <div style={{ borderLeft: '4px solid #6f8f73', padding: '1rem 1.25rem', background: '#f8faf6', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      <div style={{ fontWeight: '800', fontSize: '1rem', color: '#1f2937' }}>{i.type}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500' }}>{formatDate(i.interacted_at)}</div>
+                      {/* Interaction type: regular weight (not bold) */}
+                      <div style={{ fontWeight: '400', fontSize: '1rem', color: '#1f2937', fontFamily: SITE_FONT }}>{i.type}</div>
+                      <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500', fontFamily: SITE_FONT }}>{formatDate(i.interacted_at)}</div>
                     </div>
-                    <div style={{ fontSize: '0.95rem', color: '#374151', lineHeight: '1.5', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5ede6' }}>{i.notes}</div>
+                    <div style={{ fontSize: '0.95rem', color: '#374151', lineHeight: '1.5', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5ede6', fontFamily: SITE_FONT }}>{i.notes}</div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => setEditingInteractionId(i.id)} style={{ background: '#eef4ee', color: '#4f6b57', border: '1px solid #c4d4c7', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>✏️ Edit</button>
-                      <button onClick={() => deleteInteraction(i.id)} disabled={deletingInteractionId === i.id} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer', opacity: deletingInteractionId === i.id ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                      <button onClick={() => setEditingInteractionId(i.id)} style={{ background: '#eef4ee', color: '#4f6b57', border: '1px solid #c4d4c7', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: SITE_FONT }}>✏️ Edit</button>
+                      <button onClick={() => deleteInteraction(i.id)} disabled={deletingInteractionId === i.id} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer', opacity: deletingInteractionId === i.id ? 0.6 : 1, whiteSpace: 'nowrap', fontFamily: SITE_FONT }}>
                         {deletingInteractionId === i.id ? '...' : '🗑 Delete'}
                       </button>
                     </div>
@@ -570,7 +621,6 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           </div>
         )}
       </div>
-
       <InteractionForm cardId={card.id} onSaved={loadInteractions} />
     </Modal>
   )
@@ -580,7 +630,8 @@ export default function Home() {
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState('followup')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [showAddCard, setShowAddCard] = useState(false)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingCard, setEditingCard] = useState(null)
@@ -591,19 +642,16 @@ export default function Home() {
     try {
       const { data: cardsData, error: cardsError } = await supabase.from('care_cards').select('*').order('created_at', { ascending: false })
       if (cardsError) throw cardsError
-
       if (cardsData?.length > 0) {
         const cardIds = cardsData.map((card) => card.id)
         const { data: interactionsData, error: interactionsError } = await supabase.from('interactions').select('care_card_id, interacted_at').in('care_card_id', cardIds).order('interacted_at', { ascending: false })
         if (interactionsError) throw interactionsError
-
         const latestInteractions = {}
         interactionsData?.forEach((interaction) => {
           if (!latestInteractions[interaction.care_card_id]) {
             latestInteractions[interaction.care_card_id] = interaction.interacted_at
           }
         })
-
         setCards(cardsData.map((card) => ({ ...card, last_interaction_at: latestInteractions[card.id] || null })))
       } else {
         setCards([])
@@ -632,24 +680,14 @@ export default function Home() {
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
   const needsAttention = useMemo(() => activeCards.filter(isNeedsAttention), [activeCards])
 
-  const tabs = useMemo(() => [
-    { id: 'all', label: 'All', count: activeCards.length },
-    { id: 'short_term_medical', label: 'Short-Term Medical', count: activeCards.filter((c) => c.care_type === 'short_term_medical').length },
-    { id: 'long_term_medical', label: 'Long-Term Medical', count: activeCards.filter((c) => c.care_type === 'long_term_medical').length },
-    { id: 'grief', label: 'Grief', count: activeCards.filter((c) => c.care_type === 'grief').length },
-    { id: 'pregnancy', label: 'Pregnancy', count: activeCards.filter((c) => c.care_type === 'pregnancy').length },
-    { id: 'homebound', label: 'Homebound', count: activeCards.filter((c) => c.care_type === 'homebound').length },
-    { id: 'other', label: 'Other', count: activeCards.filter((c) => c.care_type === 'other').length },
-    { id: 'followup', label: 'Needs Attention', count: needsAttention.length },
-    { id: 'completed', label: 'Completed', count: completedCards.length },
-  ], [activeCards, needsAttention, completedCards])
-
+  // visibleCards depends on whether we're in a special tab or the category dropdown
   const visibleCards = useMemo(() => {
-    if (activeTab === 'all') return activeCards
     if (activeTab === 'followup') return needsAttention
     if (activeTab === 'completed') return completedCards
-    return activeCards.filter((c) => c.care_type === activeTab)
-  }, [activeCards, needsAttention, completedCards, activeTab])
+    // activeTab === 'browse'
+    if (categoryFilter === 'all') return activeCards
+    return activeCards.filter((c) => c.care_type === categoryFilter)
+  }, [activeCards, needsAttention, completedCards, activeTab, categoryFilter])
 
   const saveCard = async (form) => {
     try {
@@ -670,31 +708,12 @@ export default function Home() {
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f8f3', flexDirection: 'column', gap: '1rem', padding: '2rem' }}>
-        <h1 style={{ color: '#dc2626' }}>Error</h1>
-        <p>{error}</p>
-        <button onClick={loadCards} style={{ background: '#6f8f73', color: 'white', padding: '1rem 2rem', border: 'none', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f8f3', flexDirection: 'column', gap: '1rem', padding: '2rem', fontFamily: SITE_FONT }}>
+        <h1 style={{ color: '#dc2626', fontFamily: SITE_FONT }}>Error</h1>
+        <p style={{ fontFamily: SITE_FONT }}>{error}</p>
+        <button onClick={loadCards} style={{ background: '#6f8f73', color: 'white', padding: '1rem 2rem', border: 'none', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontFamily: SITE_FONT }}>Try Again</button>
       </div>
     )
-  }
-
-  const selectStyle = {
-    padding: '0.85rem 2.5rem 0.85rem 1rem',
-    borderRadius: '0.9rem',
-    border: '1px solid #6f8f73',
-    background: 'white',
-    color: '#2f3a34',
-    fontWeight: '700',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    outline: 'none',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236f8f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 1rem center',
-    minWidth: '200px',
-    boxShadow: 'none',
-    fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
   }
 
   const tabButtonStyle = (active) => ({
@@ -702,16 +721,44 @@ export default function Home() {
     color: active ? 'white' : '#2f3a34',
     border: '1px solid #cfd8cc',
     borderRadius: '999px',
-    padding: '0.65rem 1rem',
-    fontWeight: active ? '800' : '600',
+    padding: '0.65rem 1.25rem',
+    fontWeight: active ? '700' : '400',
     cursor: 'pointer',
     boxShadow: 'none',
-    fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif',
+    fontFamily: SITE_FONT,
+    fontSize: '0.95rem',
+    transition: 'all 0.15s ease',
   })
 
+  const dropdownStyle = {
+    padding: '0.65rem 2.5rem 0.65rem 1rem',
+    borderRadius: '999px',
+    border: activeTab === 'browse' ? '1px solid #6f8f73' : '1px solid #cfd8cc',
+    background: activeTab === 'browse' ? '#6f8f73' : 'white',
+    color: activeTab === 'browse' ? 'white' : '#2f3a34',
+    fontWeight: activeTab === 'browse' ? '700' : '400',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    outline: 'none',
+    appearance: 'none',
+    backgroundImage: activeTab === 'browse'
+      ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`
+      : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236f8f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 0.85rem center',
+    fontFamily: SITE_FONT,
+    minWidth: '180px',
+  }
+
+  // Label for the dropdown trigger showing current selection
+  const categoryLabel = categoryFilter === 'all'
+    ? `All Cards (${activeCards.length})`
+    : `${CARE_TYPES.find(t => t.value === categoryFilter)?.label} (${activeCards.filter(c => c.care_type === categoryFilter).length})`
+
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', color: '#26312b', fontFamily: 'Avenir Next, Avenir, Helvetica, Arial, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', color: '#26312b', fontFamily: SITE_FONT }}>
       <style>{`
+        * { font-family: 'Avenir Next', Avenir, Helvetica, Arial, sans-serif !important; }
         @media (max-width: 640px) {
           .header-inner { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; padding: 1rem !important; }
           .header-inner h1 { font-size: 1.5rem !important; }
@@ -727,17 +774,18 @@ export default function Home() {
           .card-detail-actions { flex-wrap: wrap !important; width: 100% !important; }
           .card-detail-actions button { flex: 1 !important; min-width: 80px !important; }
         }
+        .tab-btn:hover { font-weight: 400 !important; }
+        select option { font-weight: 400 !important; }
       `}</style>
 
       <header style={{ padding: '1.5rem 1rem 1rem' }}>
         <div className="header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem', backdropFilter: 'blur(12px)', boxShadow: 'none' }}>
           <div className="header-title-block" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800' }}>BurdenBear</h1>
-            <div style={{ color: '#5f6b63', marginTop: '0.4rem', fontSize: '1rem', fontStyle: 'italic' }}>
+            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', fontFamily: SITE_FONT }}>BurdenBear</h1>
+            <div style={{ color: '#5f6b63', marginTop: '0.4rem', fontSize: '1rem', fontStyle: 'italic', fontFamily: SITE_FONT }}>
               "Bear one another's burdens, and so fulfill the law of Christ." (Gal. 6:2)
             </div>
           </div>
-
           <button
             className="new-card-btn"
             onClick={() => { setEditingCard(null); setShowAddCard(true) }}
@@ -754,6 +802,7 @@ export default function Home() {
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap',
               flexShrink: 0,
+              fontFamily: SITE_FONT,
             }}
           >
             + New Care Card
@@ -761,31 +810,71 @@ export default function Home() {
         </div>
       </header>
 
-      <div style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <button onClick={() => setActiveTab('all')} style={tabButtonStyle(activeTab === 'all')}>All ({activeCards.length})</button>
-        {CARE_TYPES.map((type) => (
-          <button key={type.value} onClick={() => setActiveTab(type.value)} style={tabButtonStyle(activeTab === type.value)}>
-            {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
-          </button>
-        ))}
-        <button onClick={() => setActiveTab('followup')} style={tabButtonStyle(activeTab === 'followup')}>Needs Attention ({needsAttention.length})</button>
-        <button onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>Completed ({completedCards.length})</button>
+      {/* Navigation: dropdown for categories + distinct tabs for Needs Attention & Completed */}
+      <div style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+        {/* Category dropdown */}
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <select
+            style={dropdownStyle}
+            value={activeTab === 'browse' ? categoryFilter : '__browse__'}
+            onChange={(e) => {
+              setActiveTab('browse')
+              setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
+            }}
+            onFocus={() => { if (activeTab !== 'browse') setActiveTab('browse') }}
+          >
+            <option value="all">All Cards ({activeCards.length})</option>
+            {CARE_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Needs Attention tab */}
+        <button
+          className="tab-btn"
+          onClick={() => setActiveTab('followup')}
+          style={tabButtonStyle(activeTab === 'followup')}
+        >
+          Needs Attention ({needsAttention.length})
+        </button>
+
+        {/* Completed tab */}
+        <button
+          className="tab-btn"
+          onClick={() => setActiveTab('completed')}
+          style={tabButtonStyle(activeTab === 'completed')}
+        >
+          Completed ({completedCards.length})
+        </button>
       </div>
 
       <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
         {loading ? (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#5f6b63', fontSize: '1.1rem' }}>
+          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#5f6b63', fontSize: '1.1rem', fontFamily: SITE_FONT }}>
             Loading care cards...
           </div>
         ) : visibleCards.length === 0 ? (
-          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#5f6b63', background: 'rgba(255,255,255,0.5)', borderRadius: '1rem', border: '1px dashed #d9e2d6' }}>
-            <h3 style={{ marginBottom: '0.5rem' }}>{activeTab === 'completed' ? 'No completed cards yet' : activeTab === 'followup' ? 'No cards need attention right now' : 'No cards yet'}</h3>
-            <p>{activeTab === 'completed' ? 'Cards marked complete will appear here.' : activeTab === 'followup' ? 'Everything is up to date.' : 'Create your first care card above to get started!'}</p>
+          <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#5f6b63', background: 'rgba(255,255,255,0.5)', borderRadius: '1rem', border: '1px dashed #d9e2d6', fontFamily: SITE_FONT }}>
+            <h3 style={{ marginBottom: '0.5rem', fontFamily: SITE_FONT }}>
+              {activeTab === 'completed' ? 'No completed cards yet' : activeTab === 'followup' ? 'No cards need attention right now' : 'No cards yet'}
+            </h3>
+            <p style={{ fontFamily: SITE_FONT }}>
+              {activeTab === 'completed' ? 'Cards marked complete will appear here.' : activeTab === 'followup' ? 'Everything is up to date.' : 'Create your first care card above to get started!'}
+            </p>
           </div>
         ) : (
           <div className="cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
             {visibleCards.map((card) => (
-              <CareCard key={card.id} card={card} onClick={() => setSelectedCard(card)} onComplete={handleComplete} />
+              <CareCard
+                key={card.id}
+                card={card}
+                onClick={() => setSelectedCard(card)}
+                onComplete={handleComplete}
+                showYellowSoon={activeTab === 'followup'}
+              />
             ))}
           </div>
         )}
@@ -796,7 +885,6 @@ export default function Home() {
           <CardForm initial={editingCard} onSave={saveCard} onClose={() => { setShowAddCard(false); setEditingCard(null) }} />
         </Modal>
       )}
-
       {selectedCard && (
         <CardDetail
           card={selectedCard}
