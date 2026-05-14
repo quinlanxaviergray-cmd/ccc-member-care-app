@@ -1192,6 +1192,12 @@ export default function Home() {
             font-size: 0.85rem !important;
             min-height: 40px !important;
           }
+          .tabs-mobile {
+            display: block !important;
+          }
+          .tabs-desktop {
+            display: none !important;
+          }
           .cards-grid {
             grid-template-columns: 1fr !important;
             gap: 1rem !important;
@@ -1272,39 +1278,74 @@ export default function Home() {
         </div>
       </header>
 
-      {/* TABS */}
-      <div className="tabs-row" style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {tabs.map((tab) => {
-          const isCompleted = tab.id === 'completed'
-          const isActive = activeTab === tab.id
-          return (
-            <button
-              key={tab.id}
-              className="tab-btn"
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '1rem 1.25rem',
-                borderRadius: '999px',
-                border: isActive
-                  ? `2px solid ${isCompleted ? '#4f6b57' : '#6f8f73'}`
-                  : '1px solid #d9e2d6',
-                background: isActive
-                  ? isCompleted ? '#4f6b57' : '#6f8f73'
-                  : 'rgba(255,255,255,0.95)',
-                color: isActive ? 'white' : '#2f3a34',
-                fontWeight: '700',
-                fontSize: '1rem',
-                boxShadow: '0 6px 20px rgba(44, 57, 49, 0.08)',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
-                minHeight: '52px',
-              }}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          )
-        })}
+      {/* TABS — desktop: pill buttons, mobile: dropdown */}
+      <div className="tabs-row" style={{ padding: '0 1rem 1rem' }}>
+        {/* Mobile dropdown */}
+        <div className="tabs-mobile" style={{ display: 'none' }}>
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.85rem 1rem',
+              borderRadius: '0.9rem',
+              border: '2px solid #6f8f73',
+              background: 'white',
+              color: '#2f3a34',
+              fontWeight: '700',
+              fontSize: '1rem',
+              cursor: 'pointer',
+              outline: 'none',
+              appearance: 'none',
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236f8f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 1rem center',
+              paddingRight: '2.5rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            }}
+          >
+            {tabs.map((tab) => (
+              <option key={tab.id} value={tab.id}>
+                {tab.label} ({tab.count})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Desktop pill buttons */}
+        <div className="tabs-desktop" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {tabs.map((tab) => {
+            const isCompleted = tab.id === 'completed'
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                className="tab-btn"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: '1rem 1.25rem',
+                  borderRadius: '999px',
+                  border: isActive
+                    ? `2px solid ${isCompleted ? '#4f6b57' : '#6f8f73'}`
+                    : '1px solid #d9e2d6',
+                  background: isActive
+                    ? isCompleted ? '#4f6b57' : '#6f8f73'
+                    : 'rgba(255,255,255,0.95)',
+                  color: isActive ? 'white' : '#2f3a34',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  boxShadow: '0 6px 20px rgba(44, 57, 49, 0.08)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                  minHeight: '52px',
+                }}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
