@@ -1,4 +1,5 @@
-"use client";
+"use client"
+
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -43,7 +44,6 @@ function isNeedsAttention(card) {
   return false
 }
 
-// Returns true if the card will need attention within the next 7 days but is NOT yet overdue
 function isUpcomingSoon(card) {
   if (card.status === 'completed') return false
   if (isNeedsAttention(card)) return false
@@ -52,10 +52,7 @@ function isUpcomingSoon(card) {
   const now = new Date()
   const diffMs = now - last
   const diffDays = diffMs / (1000 * 60 * 60 * 24)
-  if (card.follow_up_interval === 'daily') {
-    // daily cards become overdue the next calendar day, so "soon" doesn't really apply
-    return false
-  }
+  if (card.follow_up_interval === 'daily') return false
   if (card.follow_up_interval === 'weekly') return diffDays >= 0 && 7 - diffDays <= 7 && diffDays < 7
   if (card.follow_up_interval === 'monthly') return diffDays >= 23 && diffDays < 30
   return false
@@ -112,13 +109,15 @@ function Modal({ children, onClose, width = '600px' }) {
         aria-modal="true"
         style={{ display: 'none' }}
       >
-        <div style={{
-          width: '40px',
-          height: '4px',
-          background: '#c4d4c7',
-          borderRadius: '999px',
-          margin: '0 auto 1rem',
-        }} />
+        <div
+          style={{
+            width: '40px',
+            height: '4px',
+            background: '#c4d4c7',
+            borderRadius: '999px',
+            margin: '0 auto 1rem',
+          }}
+        />
         {children}
       </div>
     </div>
@@ -349,7 +348,6 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
     try { await onComplete(card.id) } finally { setCompleting(false) }
   }
 
-  // Determine border color & indicator color
   let borderColor = '#d9e2d6'
   let borderWidth = '1px'
   if (isCompleted) { borderColor = '#a8c4ab'; borderWidth = '1px' }
@@ -385,57 +383,23 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
         flexDirection: 'column',
         gap: '1rem',
         position: 'relative',
-        // No overflow:hidden — that was clipping the top label and causing the "red bubble" glitch
         opacity: isCompleted ? 0.9 : 1,
         boxShadow: 'none',
         fontFamily: SITE_FONT,
       }}
     >
-      {/* Category label — positioned so it doesn't peek above the card border */}
-      <div style={{
-        position: 'absolute',
-        top: '0.75rem',
-        left: '1.25rem',
-        background: isCompleted ? '#eaf4ea' : overdue ? '#fef2f2' : soon ? '#fffbeb' : '#f4f7f2',
-        padding: '0.2rem 0.65rem',
-        borderRadius: '0.5rem',
-        fontWeight: '400',
-        fontSize: '0.78rem',
-        color: isCompleted ? '#4f6b57' : overdue ? '#dc2626' : soon ? '#d97706' : '#6f8f73',
-        fontFamily: SITE_FONT,
-        border: `1px solid ${isCompleted ? '#a8c4ab' : overdue ? '#fca5a5' : soon ? '#fcd34d' : '#d9e2d6'}`,
-      }}>
-        {type.label}
-      </div>
-
       {isCompleted && (
         <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#dcf0dc', color: '#2d6a35', padding: '0.4rem 0.8rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', fontFamily: SITE_FONT }}>
           ✓ COMPLETED
         </div>
       )}
       {!isCompleted && overdue && (
-        <div style={{
-          position: 'absolute', top: '1rem', right: '1rem',
-          width: '32px', height: '32px',
-          background: '#fee2e2',
-          border: '1px solid #dc2626',
-          borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', flexShrink: 0,
-        }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '32px', height: '32px', background: '#fee2e2', border: '1px solid #dc2626', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
           ⏰
         </div>
       )}
       {!isCompleted && soon && (
-        <div style={{
-          position: 'absolute', top: '1rem', right: '1rem',
-          width: '32px', height: '32px',
-          background: '#fffbeb',
-          border: '1px solid #d97706',
-          borderRadius: '50%',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '1rem', flexShrink: 0,
-        }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '32px', height: '32px', background: '#fffbeb', border: '1px solid #d97706', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
           🕐
         </div>
       )}
@@ -445,15 +409,21 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           {card.name}
         </div>
         <div style={{
-          fontSize: '1.1rem', fontWeight: '700', color: '#374151',
-          padding: '0.75rem 1rem', background: indicatorBg,
-          borderRadius: '0.75rem', borderLeft: `4px solid ${indicatorBorder}`,
+          fontSize: '1.1rem',
+          fontWeight: '700',
+          color: '#374151',
+          padding: '0.75rem 1rem',
+          background: indicatorBg,
+          borderRadius: '0.75rem',
+          borderLeft: `4px solid ${indicatorBorder}`,
           fontFamily: SITE_FONT,
         }}>
           {card.care_title}
         </div>
         <div style={{
-          display: 'flex', flexDirection: 'column', gap: '0.35rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.35rem',
           padding: '0.75rem 0 0.25rem 0',
           borderTop: '1px solid #e5e7eb',
           marginTop: 'auto',
@@ -470,27 +440,22 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{
-          background: type.bg, color: type.color,
-          padding: '0.5rem 1rem', borderRadius: '0.6rem',
-          fontSize: '0.9rem', fontWeight: '400',
-          border: `1px solid ${type.color}`,
-          textAlign: 'center', width: '100%', boxSizing: 'border-box',
-          fontFamily: SITE_FONT,
-        }}>
-          {type.label}
-        </div>
         {!isCompleted && (
           <button
             onClick={handleComplete}
             disabled={completing}
             style={{
               background: completing ? '#9ca3af' : '#4f6b57',
-              color: 'white', border: 'none',
-              padding: '0.5rem 1rem', borderRadius: '0.6rem',
-              fontSize: '0.9rem', fontWeight: '700',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.6rem',
+              fontSize: '0.9rem',
+              fontWeight: '700',
               cursor: completing ? 'not-allowed' : 'pointer',
-              width: '100%', textAlign: 'center', boxSizing: 'border-box',
+              width: '100%',
+              textAlign: 'center',
+              boxSizing: 'border-box',
               fontFamily: SITE_FONT,
             }}
           >
@@ -532,8 +497,13 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
     try {
       const { error } = await supabase.from('care_cards').delete().eq('id', card.id)
       if (error) throw error
-      onClose(); refreshCards()
-    } catch (error) { alert(error.message) } finally { setDeleting(false) }
+      onClose()
+      refreshCards()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const completeCard = async () => {
@@ -542,8 +512,13 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
     try {
       const { error } = await supabase.from('care_cards').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', card.id)
       if (error) throw error
-      onClose(); refreshCards()
-    } catch (error) { alert(error.message) } finally { setCompleting(false) }
+      onClose()
+      refreshCards()
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setCompleting(false)
+    }
   }
 
   const deleteInteraction = async (interactionId) => {
@@ -553,7 +528,11 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
       const { error } = await supabase.from('interactions').delete().eq('id', interactionId)
       if (error) throw error
       await loadInteractions()
-    } catch (error) { alert(error.message) } finally { setDeletingInteractionId(null) }
+    } catch (error) {
+      alert(error.message)
+    } finally {
+      setDeletingInteractionId(null)
+    }
   }
 
   return (
@@ -584,10 +563,12 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           <button className="close-btn-desktop" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '1.5rem', padding: '0.5rem', cursor: 'pointer', fontFamily: SITE_FONT }} aria-label="Close">✕</button>
         </div>
       </div>
+
       <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
         <div style={{ fontSize: '1rem', color: '#5f6b63' }}>📞 {card.phone || 'No phone number'} • 📍 {card.location || 'No location'}</div>
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
       </div>
+
       <div style={{ marginTop: '1.5rem', fontFamily: SITE_FONT }}>
         <h3 style={{ marginBottom: '1rem', fontFamily: SITE_FONT }}>Interaction History</h3>
         {loading ? (
@@ -603,7 +584,6 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                 ) : (
                   <div style={{ borderLeft: '4px solid #6f8f73', padding: '1rem 1.25rem', background: '#f8faf6', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      {/* Interaction type: regular weight (not bold) */}
                       <div style={{ fontWeight: '400', fontSize: '1rem', color: '#1f2937', fontFamily: SITE_FONT }}>{i.type}</div>
                       <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500', fontFamily: SITE_FONT }}>{formatDate(i.interacted_at)}</div>
                     </div>
@@ -621,6 +601,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           </div>
         )}
       </div>
+
       <InteractionForm cardId={card.id} onSaved={loadInteractions} />
     </Modal>
   )
@@ -680,11 +661,9 @@ export default function Home() {
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
   const needsAttention = useMemo(() => activeCards.filter(isNeedsAttention), [activeCards])
 
-  // visibleCards depends on whether we're in a special tab or the category dropdown
   const visibleCards = useMemo(() => {
     if (activeTab === 'followup') return needsAttention
     if (activeTab === 'completed') return completedCards
-    // activeTab === 'browse'
     if (categoryFilter === 'all') return activeCards
     return activeCards.filter((c) => c.care_type === categoryFilter)
   }, [activeCards, needsAttention, completedCards, activeTab, categoryFilter])
@@ -741,19 +720,14 @@ export default function Home() {
     cursor: 'pointer',
     outline: 'none',
     appearance: 'none',
-    backgroundImage: activeTab === 'browse'
-      ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`
-      : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236f8f73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    backgroundImage: 'none',
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 0.85rem center',
     fontFamily: SITE_FONT,
     minWidth: '180px',
   }
-
-  // Label for the dropdown trigger showing current selection
-  const categoryLabel = categoryFilter === 'all'
-    ? `All Cards (${activeCards.length})`
-    : `${CARE_TYPES.find(t => t.value === categoryFilter)?.label} (${activeCards.filter(c => c.care_type === categoryFilter).length})`
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', color: '#26312b', fontFamily: SITE_FONT }}>
@@ -810,9 +784,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Navigation: dropdown for categories + distinct tabs for Needs Attention & Completed */}
       <div style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-        {/* Category dropdown */}
         <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
           <select
             style={dropdownStyle}
@@ -830,23 +802,14 @@ export default function Home() {
               </option>
             ))}
           </select>
+          <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
         </div>
 
-        {/* Needs Attention tab */}
-        <button
-          className="tab-btn"
-          onClick={() => setActiveTab('followup')}
-          style={tabButtonStyle(activeTab === 'followup')}
-        >
+        <button className="tab-btn" onClick={() => setActiveTab('followup')} style={tabButtonStyle(activeTab === 'followup')}>
           Needs Attention ({needsAttention.length})
         </button>
 
-        {/* Completed tab */}
-        <button
-          className="tab-btn"
-          onClick={() => setActiveTab('completed')}
-          style={tabButtonStyle(activeTab === 'completed')}
-        >
+        <button className="tab-btn" onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>
           Completed ({completedCards.length})
         </button>
       </div>
