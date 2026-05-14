@@ -800,7 +800,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
   return (
     <Modal onClose={onClose} width="800px">
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
+      <div className="card-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <h2 style={{ margin: 0, fontSize: '1.75rem' }}>{card.name}</h2>
@@ -822,7 +822,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="card-detail-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Complete button — only if still active */}
           {!isCompleted && (
             <button
@@ -933,7 +933,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                     }}
                   >
                     {/* Top row: type + date + action buttons */}
-                    <div style={{
+                    <div className="interaction-row" style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -942,7 +942,7 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                     }}>
                       <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>{i.type}</div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div className="interaction-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ fontSize: '0.85rem', color: '#5f6b63' }}>
                           {formatDate(i.interacted_at)}
                         </div>
@@ -1162,8 +1162,71 @@ export default function Home() {
         fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
       }}
     >
+      <style>{`
+        @media (max-width: 640px) {
+          .header-inner {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.75rem !important;
+            padding: 1rem !important;
+          }
+          .header-inner h1 {
+            font-size: 1.5rem !important;
+          }
+          .header-inner .subtitle {
+            font-size: 0.95rem !important;
+            margin-top: 0.25rem !important;
+          }
+          .new-card-btn {
+            width: 100% !important;
+            text-align: center !important;
+            padding: 0.85rem 1rem !important;
+            font-size: 1rem !important;
+          }
+          .tabs-row {
+            gap: 0.5rem !important;
+            padding: 0 0.75rem 0.75rem !important;
+          }
+          .tab-btn {
+            padding: 0.6rem 0.85rem !important;
+            font-size: 0.85rem !important;
+            min-height: 40px !important;
+          }
+          .cards-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+          .modal-content {
+            padding: 1rem !important;
+            border-radius: 1rem !important;
+            max-height: 95vh !important;
+          }
+          .card-detail-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.75rem !important;
+          }
+          .card-detail-actions {
+            flex-wrap: wrap !important;
+            width: 100% !important;
+          }
+          .card-detail-actions button {
+            flex: 1 !important;
+            min-width: 80px !important;
+          }
+          .interaction-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 0.5rem !important;
+          }
+          .interaction-actions {
+            align-self: flex-end !important;
+          }
+        }
+      `}</style>
       <header style={{ padding: '1.5rem 1rem 1rem' }}>
         <div
+          className="header-inner"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -1180,12 +1243,13 @@ export default function Home() {
         >
           <div>
             <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800' }}>Member Care</h1>
-            <div style={{ color: '#5f6b63', marginTop: '0.5rem', fontSize: '1.1rem' }}>
+            <div className="subtitle" style={{ color: '#5f6b63', marginTop: '0.5rem', fontSize: '1.1rem' }}>
               Track care requests and follow-ups
             </div>
           </div>
 
           <button
+            className="new-card-btn"
             onClick={() => {
               setEditingCard(null)
               setShowAddCard(true)
@@ -1209,13 +1273,14 @@ export default function Home() {
       </header>
 
       {/* TABS */}
-      <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+      <div className="tabs-row" style={{ padding: '0 1rem 1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         {tabs.map((tab) => {
           const isCompleted = tab.id === 'completed'
           const isActive = activeTab === tab.id
           return (
             <button
               key={tab.id}
+              className="tab-btn"
               onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: '1rem 1.25rem',
@@ -1272,6 +1337,7 @@ export default function Home() {
           </div>
         ) : (
           <div
+            className="cards-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
