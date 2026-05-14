@@ -675,12 +675,14 @@ function CareCard({ card, onClick, onComplete }) {
         <div style={{
           background: type.bg,
           color: type.color,
-          padding: '0.25rem 0.75rem',
-          borderRadius: '999px',
-          fontSize: '0.78rem',
+          padding: '0.5rem 1rem',
+          borderRadius: '0.6rem',
+          fontSize: '0.9rem',
           fontWeight: '700',
           border: `1px solid ${type.color}`,
-          alignSelf: 'flex-start',
+          textAlign: 'center',
+          width: '100%',
+          boxSizing: 'border-box',
         }}>
           {type.label}
         </div>
@@ -694,14 +696,15 @@ function CareCard({ card, onClick, onComplete }) {
               background: completing ? '#9ca3af' : '#4f6b57',
               color: 'white',
               border: 'none',
-              padding: '0.3rem 0.75rem',
-              borderRadius: '999px',
-              fontSize: '0.78rem',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.6rem',
+              fontSize: '0.9rem',
               fontWeight: '700',
               cursor: completing ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
-              alignSelf: 'flex-start',
-              whiteSpace: 'nowrap',
+              width: '100%',
+              textAlign: 'center',
+              boxSizing: 'border-box',
             }}
           >
             {completing ? 'Completing...' : '✓ Click to Complete'}
