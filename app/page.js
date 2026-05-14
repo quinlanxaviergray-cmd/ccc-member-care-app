@@ -345,20 +345,38 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
     e.stopPropagation()
     if (!confirm('Mark this care card as complete? It will move to the Completed tab.')) return
     setCompleting(true)
-    try { await onComplete(card.id) } finally { setCompleting(false) }
+    try {
+      await onComplete(card.id)
+    } finally {
+      setCompleting(false)
+    }
   }
 
   let borderColor = '#d9e2d6'
   let borderWidth = '1px'
-  if (isCompleted) { borderColor = '#a8c4ab'; borderWidth = '1px' }
-  else if (overdue) { borderColor = '#dc2626'; borderWidth = '3px' }
-  else if (soon) { borderColor = '#d97706'; borderWidth = '3px' }
+  if (isCompleted) {
+    borderColor = '#a8c4ab'
+    borderWidth = '1px'
+  } else if (overdue) {
+    borderColor = '#dc2626'
+    borderWidth = '3px'
+  } else if (soon) {
+    borderColor = '#d97706'
+    borderWidth = '3px'
+  }
 
   let indicatorBg = '#f9fafb'
   let indicatorBorder = '#6f8f73'
-  if (isCompleted) { indicatorBg = '#eaf4ea'; indicatorBorder = '#4f6b57' }
-  else if (overdue) { indicatorBg = '#fef2f2'; indicatorBorder = '#dc2626' }
-  else if (soon) { indicatorBg = '#fffbeb'; indicatorBorder = '#d97706' }
+  if (isCompleted) {
+    indicatorBg = '#eaf4ea'
+    indicatorBorder = '#4f6b57'
+  } else if (overdue) {
+    indicatorBg = '#fef2f2'
+    indicatorBorder = '#dc2626'
+  } else if (soon) {
+    indicatorBg = '#fffbeb'
+    indicatorBorder = '#d97706'
+  }
 
   let lastContactColor = '#6f8f73'
   if (isCompleted) lastContactColor = '#4f6b57'
@@ -370,18 +388,20 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick()
+      }}
       style={{
         background: isCompleted ? '#f3f7f1' : 'white',
         border: `${borderWidth} solid ${borderColor}`,
         borderRadius: '1.25rem',
-        padding: '1.75rem 1.5rem',
+        padding: '1.5rem 1.5rem',
         cursor: 'pointer',
         transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-        minHeight: '180px',
+        minHeight: '170px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem',
+        gap: '0.85rem',
         position: 'relative',
         opacity: isCompleted ? 0.9 : 1,
         boxShadow: 'none',
@@ -389,65 +409,130 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
       }}
     >
       {isCompleted && (
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', background: '#dcf0dc', color: '#2d6a35', padding: '0.4rem 0.8rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '800', fontFamily: SITE_FONT }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '1rem',
+            right: '1rem',
+            background: '#dcf0dc',
+            color: '#2d6a35',
+            padding: '0.4rem 0.8rem',
+            borderRadius: '999px',
+            fontSize: '0.8rem',
+            fontWeight: '800',
+            fontFamily: SITE_FONT,
+          }}
+        >
           ✓ COMPLETED
         </div>
       )}
-      {!isCompleted && overdue && (
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '32px', height: '32px', background: '#fee2e2', border: '1px solid #dc2626', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
-          ⏰
-        </div>
-      )}
-      {!isCompleted && soon && (
-        <div style={{ position: 'absolute', top: '1rem', right: '1rem', width: '32px', height: '32px', background: '#fffbeb', border: '1px solid #d97706', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>
-          🕐
-        </div>
-      )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
-        <div style={{
-          display: 'inline-block',
-          alignSelf: 'flex-start',
-          background: type.bg,
-          color: type.color,
-          padding: '0.2rem 0.65rem',
-          borderRadius: '0.5rem',
-          border: `1px solid ${type.color}`,
-          fontSize: '0.78rem',
-          fontWeight: '400',
-          fontFamily: SITE_FONT,
-          marginBottom: '0.15rem',
-        }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.75rem',
+          paddingRight: isCompleted ? '3.5rem' : '0',
+          marginTop: '0.15rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-block',
+            background: type.bg,
+            color: type.color,
+            padding: '0.2rem 0.65rem',
+            borderRadius: '0.5rem',
+            border: `1px solid ${type.color}`,
+            fontSize: '0.78rem',
+            fontWeight: '400',
+            fontFamily: SITE_FONT,
+            flexShrink: 0,
+          }}
+        >
           {type.label}
         </div>
 
-        <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: '1.3', color: '#1f2937', fontFamily: SITE_FONT }}>
+        {!isCompleted && overdue && (
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              background: '#fee2e2',
+              border: '1px solid #dc2626',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.95rem',
+              flexShrink: 0,
+            }}
+          >
+            ⏰
+          </div>
+        )}
+
+        {!isCompleted && !overdue && soon && (
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              background: '#fffbeb',
+              border: '1px solid #d97706',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.95rem',
+              flexShrink: 0,
+            }}
+          >
+            🕐
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        <div
+          style={{
+            fontSize: '1.25rem',
+            fontWeight: '800',
+            lineHeight: '1.25',
+            color: '#1f2937',
+            fontFamily: SITE_FONT,
+          }}
+        >
           {card.name}
         </div>
 
-        <div style={{
-          fontSize: '1.1rem',
-          fontWeight: '700',
-          color: '#374151',
-          padding: '0.75rem 1rem',
-          background: indicatorBg,
-          borderRadius: '0.75rem',
-          borderLeft: `4px solid ${indicatorBorder}`,
-          fontFamily: SITE_FONT,
-        }}>
+        <div
+          style={{
+            fontSize: '1.1rem',
+            fontWeight: '700',
+            color: '#374151',
+            padding: '0.7rem 1rem',
+            background: indicatorBg,
+            borderRadius: '0.75rem',
+            borderLeft: `4px solid ${indicatorBorder}`,
+            fontFamily: SITE_FONT,
+          }}
+        >
           {card.care_title}
         </div>
 
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.35rem',
-          padding: '0.75rem 0 0.25rem 0',
-          borderTop: '1px solid #e5e7eb',
-          marginTop: 'auto',
-          fontSize: '0.95rem',
-          fontFamily: SITE_FONT,
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.3rem',
+            padding: '0.6rem 0 0.15rem 0',
+            borderTop: '1px solid #e5e7eb',
+            marginTop: '0.15rem',
+            fontSize: '0.95rem',
+            fontFamily: SITE_FONT,
+          }}
+        >
           <div style={{ color: '#6b7280' }}>
             📍 {card.location || 'No location'}
           </div>
@@ -457,30 +542,29 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        {!isCompleted && (
-          <button
-            onClick={handleComplete}
-            disabled={completing}
-            style={{
-              background: completing ? '#9ca3af' : '#4f6b57',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '0.6rem',
-              fontSize: '0.9rem',
-              fontWeight: '700',
-              cursor: completing ? 'not-allowed' : 'pointer',
-              width: '100%',
-              textAlign: 'center',
-              boxSizing: 'border-box',
-              fontFamily: SITE_FONT,
-            }}
-          >
-            {completing ? 'Completing...' : '✓ Click to Complete'}
-          </button>
-        )}
-      </div>
+      {!isCompleted && (
+        <button
+          onClick={handleComplete}
+          disabled={completing}
+          style={{
+            background: completing ? '#9ca3af' : '#4f6b57',
+            color: 'white',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.6rem',
+            fontSize: '0.9rem',
+            fontWeight: '700',
+            cursor: completing ? 'not-allowed' : 'pointer',
+            width: '100%',
+            textAlign: 'center',
+            boxSizing: 'border-box',
+            fontFamily: SITE_FONT,
+            marginTop: 'auto',
+          }}
+        >
+          {completing ? 'Completing...' : '✓ Click to Complete'}
+        </button>
+      )}
     </div>
   )
 }
