@@ -405,9 +405,26 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }}>
+        <div style={{
+          display: 'inline-block',
+          alignSelf: 'flex-start',
+          background: type.bg,
+          color: type.color,
+          padding: '0.2rem 0.65rem',
+          borderRadius: '0.5rem',
+          border: `1px solid ${type.color}`,
+          fontSize: '0.78rem',
+          fontWeight: '400',
+          fontFamily: SITE_FONT,
+          marginBottom: '0.15rem',
+        }}>
+          {type.label}
+        </div>
+
         <div style={{ fontSize: '1.25rem', fontWeight: '800', lineHeight: '1.3', color: '#1f2937', fontFamily: SITE_FONT }}>
           {card.name}
         </div>
+
         <div style={{
           fontSize: '1.1rem',
           fontWeight: '700',
@@ -420,6 +437,7 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
         }}>
           {card.care_title}
         </div>
+
         <div style={{
           display: 'flex',
           flexDirection: 'column',
