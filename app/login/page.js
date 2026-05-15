@@ -44,8 +44,7 @@ const handleLogin = async (e) => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: SITE_FONT, padding: '1rem' }}>
-      <div style={{ width: '100%', maxWidth: '420px' }}>
+<div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: SITE_FONT, padding: '1rem', overflowX: 'hidden' }}>      <div style={{ width: '100%', maxWidth: '420px' }}>
 
         {/* Header Card */}
         <div style={{ background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '2rem', backdropFilter: 'blur(12px)', marginBottom: '1rem', textAlign: 'center' }}>

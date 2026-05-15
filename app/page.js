@@ -269,7 +269,30 @@ function InteractionForm({ cardId, onSaved }) {
     if (!form.notes.trim()) { alert('Please add interaction notes.'); return }
     setSaving(true)
     try {
-      const payload = { care_card_id: cardId, type: form.type, notes: form.notes.trim(), interacted_at: new Date(form.interacted_at).toISOString() }
+      // Get current user's name
+      let loggedBy = ''
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', session.user.id)
+          .single()
+        if (profile?.full_name) {
+          const parts = profile.full_name.trim().split(' ')
+          const firstName = parts[0]
+          const lastInitial = parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : ''
+          loggedBy = firstName + lastInitial
+        }
+      }
+
+      const payload = {
+        care_card_id: cardId,
+        type: form.type,
+        notes: form.notes.trim(),
+        interacted_at: new Date(form.interacted_at).toISOString(),
+        logged_by: loggedBy,
+      }
       const { error } = await supabase.from('interactions').insert([payload])
       if (error) throw error
       setForm({ type: 'Visit', notes: '', interacted_at: getLocalDateTimeValue() })
@@ -633,6 +656,28 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
   const [deletingInteractionId, setDeletingInteractionId] = useState(null)
   const isCompleted = card.status === 'completed'
 
+  const [currentUserName, setCurrentUserName] = useState('')
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', session.user.id)
+          .single()
+        if (profile?.full_name) {
+          const parts = profile.full_name.trim().split(' ')
+          const firstName = parts[0]
+          const lastInitial = parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : ''
+          setCurrentUserName(firstName + lastInitial)
+        }
+      }
+    }
+    fetchUserName()
+  }, [])
+
   const loadInteractions = useCallback(async () => {
     setLoading(true)
     try {
@@ -762,7 +807,14 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                 ) : (
                   <div style={{ borderLeft: '4px solid #6f8f73', padding: '1rem 1.25rem', background: '#f8faf6', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      <div style={{ fontWeight: '400', fontSize: '1rem', color: '#1f2937', fontFamily: SITE_FONT }}>{i.type}</div>
+                      <div style={{ fontWeight: '400', fontSize: '1rem', color: '#1f2937', fontFamily: SITE_FONT }}>
+                        {i.type}
+                        {i.logged_by && (
+                          <span style={{ color: '#9ca3af', fontSize: '0.85rem', fontWeight: '400', marginLeft: '0.4rem' }}>
+                            · {i.logged_by}
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: '500', fontFamily: SITE_FONT }}>{formatDate(i.interacted_at)}</div>
                     </div>
                     <div style={{ fontSize: '0.95rem', color: '#374151', lineHeight: '1.5', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5ede6', fontFamily: SITE_FONT }}>{i.notes}</div>
@@ -798,6 +850,7 @@ export default function Home() {
   const [editingCard, setEditingCard] = useState(null)
   const [showMenu, setShowMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
 useEffect(() => {
   supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -872,13 +925,21 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
   const needsAttentionToday = useMemo(() => activeCards.filter(isDueToday), [activeCards])
   const needsAttentionThisWeek = useMemo(() => activeCards.filter(isDueThisWeek), [activeCards])
 
-  const visibleCards = useMemo(() => {
-    if (activeTab === 'today') return needsAttentionToday
-    if (activeTab === 'thisweek') return needsAttentionThisWeek
-    if (activeTab === 'completed') return completedCards
-    if (categoryFilter === 'all') return activeCards
-    return activeCards.filter((c) => c.care_type === categoryFilter)
-  }, [activeCards, needsAttentionToday, needsAttentionThisWeek, completedCards, activeTab, categoryFilter])
+const visibleCards = useMemo(() => {
+  let cards
+  if (activeTab === 'today') cards = needsAttentionToday
+  else if (activeTab === 'thisweek') cards = needsAttentionThisWeek
+  else if (activeTab === 'completed') cards = completedCards
+  else if (categoryFilter === 'all') cards = activeCards
+  else cards = activeCards.filter((c) => c.care_type === categoryFilter)
+
+  if (!searchQuery.trim()) return cards
+  const q = searchQuery.toLowerCase()
+  return cards.filter(card =>
+    card.title?.toLowerCase().includes(q) ||
+    card.name?.toLowerCase().includes(q)
+  )
+}, [activeCards, needsAttentionToday, needsAttentionThisWeek, completedCards, activeTab, categoryFilter, searchQuery])
 
   const saveCard = async (form) => {
     try {
@@ -943,7 +1004,7 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'right 0.85rem center',
     fontFamily: SITE_FONT,
-    minWidth: '180px',
+    minWidth: '0',
   }
 
   return (
@@ -951,10 +1012,8 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
       <style>{`
         * { font-family: 'Avenir Next', Avenir, Helvetica, Arial, sans-serif !important; }
         @media (max-width: 640px) {
-          .header-inner { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; padding: 1rem !important; }
+          .header-inner { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; flex-wrap: nowrap !important; padding: 1rem !important; }
           .header-inner h1 { font-size: 1.5rem !important; }
-          .header-title-block { align-items: flex-start !important; }
-          .new-card-btn { width: 100% !important; text-align: center !important; padding: 0.85rem 1rem !important; font-size: 1rem !important; }
           .modal-overlay { align-items: flex-end !important; padding: 0 !important; }
           .modal-desktop { display: none !important; }
           .modal-mobile { display: block !important; width: 100% !important; max-height: 92vh !important; overflow-y: auto !important; background: #fbfaf7 !important; border-radius: 1.25rem 1.25rem 0 0 !important; padding: 1rem 1rem 2rem !important; border: 1px solid #d9e2d6 !important; border-bottom: none !important; }
@@ -964,59 +1023,118 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
           .card-detail-header { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
           .card-detail-actions { flex-wrap: wrap !important; width: 100% !important; }
           .card-detail-actions button { flex: 1 !important; min-width: 80px !important; }
+          .completed-tab { display: none !important; }
+          .tabs-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.75rem !important;
+}
+.search-input {
+  order: -1 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+.tabs-container > .tab-btn {
+  width: 100% !important;
+}
+.tabs-container > .tab-btn select {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+}
+.tabs-container > div:last-child {
+  display: flex !important;
+  gap: 0.75rem !important;
+  width: 100% !important;
+}
+.tabs-container > div:last-child button {
+  flex: 1 !important;
+}
+.completed-tab { display: none !important; }
         }
         .tab-btn:hover { font-weight: 400 !important; }
         select option { font-weight: 400 !important; }
       `}</style>
 
-      <header style={{ padding: '1.5rem 1rem 1rem' }}>
-        <div className="header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem', backdropFilter: 'blur(12px)', boxShadow: 'none' }}>
-          <div className="header-title-block" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', fontFamily: SITE_FONT }}>BurdenBear</h1>
-            <div style={{ color: '#5f6b63', marginTop: '0.4rem', fontSize: '1rem', fontStyle: 'italic', fontFamily: SITE_FONT }}>
-              "Bear one another's burdens, and so fulfill the law of Christ." (Gal. 6:2)
-            </div>
+      <header style={{ padding: '1.5rem 1rem 1rem', position: 'relative', zIndex: 100 }}>
+        <div className="header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap', background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem', backdropFilter: 'blur(12px)', boxShadow: 'none' }}>
+          <div className="header-title-block" style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h1 className="burden-title" style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', fontFamily: SITE_FONT, flex: 1, whiteSpace: 'nowrap' }}>BurdenBear</h1>
           </div>
-          <div data-menu="true" style={{ position: 'relative' }}>
-  <button
-    onClick={() => setShowMenu(!showMenu)}
-    style={{
-      background: 'white',
-      border: '1px solid #cfd8cc',
-      borderRadius: '1rem',
-      padding: '1rem',
-      cursor: 'pointer',
-      fontSize: '1.2rem',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: '48px',
-      height: '48px',
-    }}
-  >
+          
+<button
+  type="button"
+  onClick={() => setShowMenu((prev) => !prev)}
+  style={{
+    background: 'white',
+    border: '1px solid #cfd8cc',
+    borderRadius: '1rem',
+    padding: '1rem',
+    cursor: 'pointer',
+    fontSize: '1.2rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '48px',
+    height: '48px',
+  }}
+>
+
     <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
     <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
     <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
   </button>
 
 {showMenu && (
-  <div style={{
-    position: 'absolute',
-    top: '110%',
-    right: 0,
-    background: 'white',
-    border: '1px solid #d9e2d6',
-    borderRadius: '1rem',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    minWidth: '180px',
-    zIndex: 100,
-    overflow: 'hidden',
-  }}>
+  <div
+    data-menu
+    style={{
+      position: 'absolute',
+      top: '5rem',
+      right: '1rem',
+      background: 'white',
+      border: '1px solid #d9e2d6',
+      borderRadius: '1rem',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      minWidth: '180px',
+      overflow: 'hidden',
+      zIndex: 200,
+    }}
+  >
+    <button
+      type="button"
+      onClick={() => {
+        setShowMenu(false)
+        router.push('/how-to')
+      }}
+      style={{
+        width: '100%',
+        padding: '1rem 1.25rem',
+        background: 'none',
+        border: 'none',
+        borderBottom: '1px solid #e5ede6',
+        textAlign: 'left',
+        cursor: 'pointer',
+        fontFamily: SITE_FONT,
+        fontSize: '0.95rem',
+        color: '#2f3a34',
+        fontWeight: '600',
+      }}
+    >
+      How-To Guide
+    </button>
+
     {isAdmin && (
       <button
-        onClick={() => { setShowMenu(false); router.push('/admin') }}
+        type="button"
+        onClick={() => {
+          setShowMenu(false)
+          router.push('/admin')
+        }}
         style={{
           width: '100%',
           padding: '1rem 1.25rem',
@@ -1034,8 +1152,13 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
         Admin Panel
       </button>
     )}
+
     <button
-      onClick={handleSignOut}
+      type="button"
+      onClick={() => {
+        setShowMenu(false)
+        handleSignOut()
+      }}
       style={{
         width: '100%',
         padding: '1rem 1.25rem',
@@ -1054,43 +1177,71 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
   </div>
 )}
 
-</div>
         </div>
       </header>
 
-      <div style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <select
-            style={dropdownStyle}
-            value={activeTab === 'browse' ? categoryFilter : '__browse__'}
-            onChange={(e) => {
-              setActiveTab('browse')
-              setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
-            }}
-            onFocus={() => { if (activeTab !== 'browse') setActiveTab('browse') }}
-          >
-            <option value="all">All Cards ({activeCards.length})</option>
-            {CARE_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
-              </option>
-            ))}
-          </select>
-          <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
-        </div>
+<div className="tabs-container" style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+  
+  {/* Search bar - shows above on mobile via CSS, inline on desktop */}
+  <input
+    className="search-input"
+    type="text"
+    placeholder="Search by name or title..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    style={{
+      padding: '0.6rem 1rem',
+      borderRadius: '2rem',
+      border: '1px solid #d9e2d6',
+      background: 'white',
+      fontSize: '0.95rem',
+      fontFamily: SITE_FONT,
+      color: '#2f3a34',
+      outline: 'none',
+      minWidth: '200px',
+      flex: 1,
+    }}
+  />
 
-        <button className="tab-btn" onClick={() => setActiveTab('today')} style={tabButtonStyle(activeTab === 'today')}>
-          Today ({needsAttentionToday.length})
-        </button>
+  <div className="tab-btn" style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 0 }}>
+    <select
+      style={dropdownStyle}
+      value={activeTab === 'browse' ? categoryFilter : '__browse__'}
+      onChange={(e) => {
+        if (e.target.value === '__completed__') {
+          setActiveTab('completed')
+          setCategoryFilter('all')
+        } else {
+          setActiveTab('browse')
+          setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
+        }
+      }}
+      onFocus={() => { if (activeTab !== 'browse') setActiveTab('browse') }}
+    >
+      <option value="all">All Cards ({activeCards.length})</option>
+      {CARE_TYPES.map((type) => (
+        <option key={type.value} value={type.value}>
+          {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
+        </option>
+      ))}
+      <option value="__completed__">Completed ({completedCards.length})</option>
+    </select>
+    <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
+  </div>
 
-        <button className="tab-btn" onClick={() => setActiveTab('thisweek')} style={tabButtonStyle(activeTab === 'thisweek')}>
-          This Week ({needsAttentionThisWeek.length})
-        </button>
+  <button className="tab-btn completed-tab" onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>
+    Completed ({completedCards.length})
+  </button>
 
-        <button className="tab-btn" onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>
-          Completed ({completedCards.length})
-        </button>
-      </div>
+  <div style={{ display: 'flex', gap: '0.75rem' }}>
+    <button className="tab-btn today-tab" onClick={() => setActiveTab('today')} style={tabButtonStyle(activeTab === 'today')}>
+      Today ({needsAttentionToday.length})
+    </button>
+    <button className="tab-btn thisweek-tab" onClick={() => setActiveTab('thisweek')} style={tabButtonStyle(activeTab === 'thisweek')}>
+      This Week ({needsAttentionThisWeek.length})
+    </button>
+  </div>
+</div>
 
       <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
         {loading ? (
