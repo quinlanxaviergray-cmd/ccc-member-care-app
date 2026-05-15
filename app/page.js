@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { useRouter } from 'next/navigation'
 
 const SITE_FONT = 'Avenir Next, Avenir, Helvetica, Arial, sans-serif'
 
@@ -27,35 +28,60 @@ function formatDate(date) {
   })
 }
 
-function isNeedsAttention(card) {
+function isDueToday(card) {
   if (card.status === 'completed') return false
-  if (!card.last_interaction_at) return true
-  const last = new Date(card.last_interaction_at)
   const now = new Date()
-  if (card.follow_up_interval === 'daily') {
-    const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    return todayDate > lastDate
-  }
-  const diffMs = now - last
-  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Never contacted → always due
+  if (!card.last_interaction_at) return true
+
+  const last = new Date(card.last_interaction_at)
+  const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
+  const diffDays = (todayDate - lastDate) / (1000 * 60 * 60 * 24)
+
+  if (card.follow_up_interval === 'daily') return diffDays >= 1
   if (card.follow_up_interval === 'weekly') return diffDays >= 7
   if (card.follow_up_interval === 'monthly') return diffDays >= 30
   return false
 }
 
-function isUpcomingSoon(card) {
+function isDueThisWeek(card) {
   if (card.status === 'completed') return false
-  if (isNeedsAttention(card)) return false
-  if (!card.last_interaction_at) return false
-  const last = new Date(card.last_interaction_at)
+  if (isDueToday(card)) return false // already on Today tab
+
   const now = new Date()
-  const diffMs = now - last
-  const diffDays = diffMs / (1000 * 60 * 60 * 24)
-  if (card.follow_up_interval === 'daily') return false
-  if (card.follow_up_interval === 'weekly') return diffDays >= 0 && 7 - diffDays <= 7 && diffDays < 7
-  if (card.follow_up_interval === 'monthly') return diffDays >= 23 && diffDays < 30
-  return false
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Find the upcoming Saturday (end of church week)
+  const dayOfWeek = todayDate.getDay() // 0 = Sunday, 6 = Saturday
+  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7 || 7
+  const saturday = new Date(todayDate)
+  saturday.setDate(todayDate.getDate() + daysUntilSaturday)
+
+  if (!card.last_interaction_at) return false // handled by isDueToday
+
+  const last = new Date(card.last_interaction_at)
+  const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
+  const diffDays = (todayDate - lastDate) / (1000 * 60 * 60 * 24)
+
+  let nextDueDate = null
+  if (card.follow_up_interval === 'daily') return false // daily is always Today
+  if (card.follow_up_interval === 'weekly') {
+    nextDueDate = new Date(lastDate)
+    nextDueDate.setDate(lastDate.getDate() + 7)
+  }
+  if (card.follow_up_interval === 'monthly') {
+    nextDueDate = new Date(lastDate)
+    nextDueDate.setDate(lastDate.getDate() + 30)
+  }
+
+  if (!nextDueDate) return false
+  return nextDueDate > todayDate && nextDueDate <= saturday
+}
+
+function isUpcomingSoon(card) {
+  return isDueThisWeek(card)
 }
 
 function getLocalDateTimeValue(date = new Date()) {
@@ -336,8 +362,8 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
 
 function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   const type = getCareType(card.care_type)
-  const overdue = isNeedsAttention(card)
-  const soon = showYellowSoon && !overdue && isUpcomingSoon(card)
+  const overdue = isDueToday(card)
+  const soon = isDueThisWeek(card) && !overdue
   const isCompleted = card.status === 'completed'
   const [completing, setCompleting] = useState(false)
 
@@ -569,6 +595,35 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   )
 }
 
+function getNextInteractionDate(card) {
+  if (card.status === 'completed') return null
+  const now = new Date()
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  if (!card.last_interaction_at) return 'Now — never contacted'
+
+  const last = new Date(card.last_interaction_at)
+  const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
+
+  let nextDate = null
+  if (card.follow_up_interval === 'daily') {
+    nextDate = new Date(lastDate)
+    nextDate.setDate(lastDate.getDate() + 1)
+  } else if (card.follow_up_interval === 'weekly') {
+    nextDate = new Date(lastDate)
+    nextDate.setDate(lastDate.getDate() + 7)
+  } else if (card.follow_up_interval === 'monthly') {
+    nextDate = new Date(lastDate)
+    nextDate.setDate(lastDate.getDate() + 30)
+  } else {
+    return null
+  }
+
+  if (nextDate < todayDate) return 'Overdue'
+  if (nextDate.getTime() === todayDate.getTime()) return 'Today'
+  return nextDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+}
+
 function CardDetail({ card, onClose, refreshCards, onEdit }) {
   const [interactions, setInteractions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -623,6 +678,18 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
     }
   }
 
+  const reactivateCard = async () => {
+  if (!confirm('Move this card back to active?')) return
+  try {
+    const { error } = await supabase.from('care_cards').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', card.id)
+    if (error) throw error
+    onClose()
+    refreshCards()
+  } catch (error) {
+    alert(error.message)
+  }
+}
+
   const deleteInteraction = async (interactionId) => {
     if (!confirm('Delete this interaction? This cannot be undone.')) return
     setDeletingInteractionId(interactionId)
@@ -653,9 +720,13 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
           <div style={{ color: '#5f6b63', fontSize: '1.1rem', marginTop: '0.25rem', fontFamily: SITE_FONT }}>{card.care_title}</div>
         </div>
         <div className="card-detail-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          {!isCompleted && (
+          {!isCompleted ? (
             <button onClick={completeCard} disabled={completing} style={{ background: completing ? '#9ca3af' : '#4f6b57', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: completing ? 'not-allowed' : 'pointer', opacity: completing ? 0.7 : 1, fontFamily: SITE_FONT }}>
-              {completing ? 'Completing...' : '✓ Click to Complete'}
+              {completing ? 'Completing...' : 'Click to Complete'}
+            </button>
+          ) : (
+            <button onClick={reactivateCard} style={{ background: '#6f8f73', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontFamily: SITE_FONT }}>
+              Make Active
             </button>
           )}
           <button onClick={() => onEdit(card)} style={{ background: '#6f8f73', color: 'white', border: 'none', padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontWeight: '600', cursor: 'pointer', fontFamily: SITE_FONT }}>Edit</button>
@@ -667,12 +738,17 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
       </div>
 
       <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
-        <div style={{ fontSize: '1rem', color: '#5f6b63' }}>📞 {card.phone || 'No phone number'} • 📍 {card.location || 'No location'}</div>
+        <div style={{ fontSize: '1rem', color: '#5f6b63' }}> {card.phone || 'No phone number'} •  {card.location || 'No location'}</div>
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
       </div>
 
       <div style={{ marginTop: '1.5rem', fontFamily: SITE_FONT }}>
-        <h3 style={{ marginBottom: '1rem', fontFamily: SITE_FONT }}>Interaction History</h3>
+        <h3 style={{ marginBottom: '0.5rem', fontFamily: SITE_FONT }}>Interaction History</h3>
+        {!isCompleted && getNextInteractionDate(card) && (
+          <div style={{ marginBottom: '1rem', fontSize: '0.95rem', fontWeight: '600', color: getNextInteractionDate(card) === 'Overdue' ? '#dc2626' : getNextInteractionDate(card) === 'Today' ? '#d97706' : '#4f6b57', fontFamily: SITE_FONT }}>
+            Next Interaction Needed By: {getNextInteractionDate(card)}
+          </div>
+        )}
         {loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6b63', fontFamily: SITE_FONT }}>Loading interactions...</div>
         ) : interactions.length === 0 ? (
@@ -691,9 +767,9 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
                     </div>
                     <div style={{ fontSize: '0.95rem', color: '#374151', lineHeight: '1.5', marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5ede6', fontFamily: SITE_FONT }}>{i.notes}</div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => setEditingInteractionId(i.id)} style={{ background: '#eef4ee', color: '#4f6b57', border: '1px solid #c4d4c7', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: SITE_FONT }}>✏️ Edit</button>
+                      <button onClick={() => setEditingInteractionId(i.id)} style={{ background: '#eef4ee', color: '#4f6b57', border: '1px solid #c4d4c7', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: SITE_FONT }}> Edit</button>
                       <button onClick={() => deleteInteraction(i.id)} disabled={deletingInteractionId === i.id} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.82rem', fontWeight: '600', cursor: deletingInteractionId === i.id ? 'not-allowed' : 'pointer', opacity: deletingInteractionId === i.id ? 0.6 : 1, whiteSpace: 'nowrap', fontFamily: SITE_FONT }}>
-                        {deletingInteractionId === i.id ? '...' : '🗑 Delete'}
+                        {deletingInteractionId === i.id ? '...' : ' Delete'}
                       </button>
                     </div>
                   </div>
@@ -710,6 +786,8 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
 }
 
 export default function Home() {
+  const router = useRouter()
+  const [session, setSession] = useState(null)
   const [cards, setCards] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -718,6 +796,26 @@ export default function Home() {
   const [showAddCard, setShowAddCard] = useState(false)
   const [selectedCard, setSelectedCard] = useState(null)
   const [editingCard, setEditingCard] = useState(null)
+  const [showMenu, setShowMenu] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+useEffect(() => {
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
+    if (!session) {
+      router.push('/login')
+    } else {
+      setSession(session)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', session.user.id)
+        .single()
+
+      if (profile?.is_admin) setIsAdmin(true)
+    }
+  })
+}, [])
 
   const loadCards = useCallback(async () => {
     setLoading(true)
@@ -749,6 +847,16 @@ export default function Home() {
 
   useEffect(() => { loadCards() }, [loadCards])
 
+  useEffect(() => {
+  const handleClickOutside = (e) => {
+  if (!e.target.closest('[data-menu]')) {
+    setShowMenu(false)
+  }
+}
+  document.addEventListener('mouseup', handleClickOutside)
+return () => document.removeEventListener('mouseup', handleClickOutside)
+}, [])
+
   const handleComplete = useCallback(async (cardId) => {
     try {
       const { error } = await supabase.from('care_cards').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', cardId)
@@ -761,14 +869,16 @@ export default function Home() {
 
   const activeCards = useMemo(() => cards.filter((c) => c.status !== 'completed'), [cards])
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
-  const needsAttention = useMemo(() => activeCards.filter(isNeedsAttention), [activeCards])
+  const needsAttentionToday = useMemo(() => activeCards.filter(isDueToday), [activeCards])
+  const needsAttentionThisWeek = useMemo(() => activeCards.filter(isDueThisWeek), [activeCards])
 
   const visibleCards = useMemo(() => {
-    if (activeTab === 'followup') return needsAttention
+    if (activeTab === 'today') return needsAttentionToday
+    if (activeTab === 'thisweek') return needsAttentionThisWeek
     if (activeTab === 'completed') return completedCards
     if (categoryFilter === 'all') return activeCards
     return activeCards.filter((c) => c.care_type === categoryFilter)
-  }, [activeCards, needsAttention, completedCards, activeTab, categoryFilter])
+  }, [activeCards, needsAttentionToday, needsAttentionThisWeek, completedCards, activeTab, categoryFilter])
 
   const saveCard = async (form) => {
     try {
@@ -785,6 +895,11 @@ export default function Home() {
     } catch (error) {
       throw new Error(error.message)
     }
+  }
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
   }
 
   if (error) {
@@ -815,7 +930,7 @@ export default function Home() {
     padding: '0.65rem 2.5rem 0.65rem 1rem',
     borderRadius: '999px',
     border: activeTab === 'browse' ? '1px solid #6f8f73' : '1px solid #cfd8cc',
-    background: activeTab === 'browse' ? '#6f8f73' : 'white',
+    backgroundColor: activeTab === 'browse' ? '#6f8f73' : 'white',
     color: activeTab === 'browse' ? 'white' : '#2f3a34',
     fontWeight: activeTab === 'browse' ? '700' : '400',
     fontSize: '0.95rem',
@@ -862,27 +977,84 @@ export default function Home() {
               "Bear one another's burdens, and so fulfill the law of Christ." (Gal. 6:2)
             </div>
           </div>
-          <button
-            className="new-card-btn"
-            onClick={() => { setEditingCard(null); setShowAddCard(true) }}
-            style={{
-              background: '#6f8f73',
-              color: 'white',
-              padding: '1rem 1.5rem',
-              border: 'none',
-              borderRadius: '1rem',
-              fontWeight: '700',
-              fontSize: '1.05rem',
-              boxShadow: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              fontFamily: SITE_FONT,
-            }}
-          >
-            + New Care Card
-          </button>
+          <div data-menu="true" style={{ position: 'relative' }}>
+  <button
+    onClick={() => setShowMenu(!showMenu)}
+    style={{
+      background: 'white',
+      border: '1px solid #cfd8cc',
+      borderRadius: '1rem',
+      padding: '1rem',
+      cursor: 'pointer',
+      fontSize: '1.2rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '4px',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '48px',
+      height: '48px',
+    }}
+  >
+    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+  </button>
+
+{showMenu && (
+  <div style={{
+    position: 'absolute',
+    top: '110%',
+    right: 0,
+    background: 'white',
+    border: '1px solid #d9e2d6',
+    borderRadius: '1rem',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+    minWidth: '180px',
+    zIndex: 100,
+    overflow: 'hidden',
+  }}>
+    {isAdmin && (
+      <button
+        onClick={() => { setShowMenu(false); router.push('/admin') }}
+        style={{
+          width: '100%',
+          padding: '1rem 1.25rem',
+          background: 'none',
+          border: 'none',
+          borderBottom: '1px solid #e5ede6',
+          textAlign: 'left',
+          cursor: 'pointer',
+          fontFamily: SITE_FONT,
+          fontSize: '0.95rem',
+          color: '#2f3a34',
+          fontWeight: '600',
+        }}
+      >
+        Admin Panel
+      </button>
+    )}
+    <button
+      onClick={handleSignOut}
+      style={{
+        width: '100%',
+        padding: '1rem 1.25rem',
+        background: 'none',
+        border: 'none',
+        textAlign: 'left',
+        cursor: 'pointer',
+        fontFamily: SITE_FONT,
+        fontSize: '0.95rem',
+        color: '#dc2626',
+        fontWeight: '600',
+      }}
+    >
+      Sign Out
+    </button>
+  </div>
+)}
+
+</div>
         </div>
       </header>
 
@@ -907,8 +1079,12 @@ export default function Home() {
           <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
         </div>
 
-        <button className="tab-btn" onClick={() => setActiveTab('followup')} style={tabButtonStyle(activeTab === 'followup')}>
-          Needs Attention ({needsAttention.length})
+        <button className="tab-btn" onClick={() => setActiveTab('today')} style={tabButtonStyle(activeTab === 'today')}>
+          Today ({needsAttentionToday.length})
+        </button>
+
+        <button className="tab-btn" onClick={() => setActiveTab('thisweek')} style={tabButtonStyle(activeTab === 'thisweek')}>
+          This Week ({needsAttentionThisWeek.length})
         </button>
 
         <button className="tab-btn" onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>
@@ -958,6 +1134,36 @@ export default function Home() {
           onEdit={(card) => { setSelectedCard(null); setEditingCard(card); setShowAddCard(true) }}
         />
       )}
+
+{/* Floating Action Button */}
+<button
+  onClick={() => { setEditingCard(null); setShowAddCard(true) }}
+  style={{
+    position: 'fixed',
+    bottom: '2rem',
+    right: '2rem',
+    width: '60px',
+    height: '60px',
+    borderRadius: '50%',
+    background: '#6f8f73',
+    color: 'white',
+    border: 'none',
+    fontSize: '2rem',
+    fontWeight: '300',
+    cursor: 'pointer',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+    transition: 'all 0.2s ease',
+    fontFamily: SITE_FONT,
+  }}
+  title="New Care Card"
+>
+  +
+</button>
+      
     </div>
   )
 }
