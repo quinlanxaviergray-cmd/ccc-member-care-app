@@ -164,6 +164,7 @@ function CardForm({ initial, onSave, onClose }) {
       follow_up_interval: 'weekly',
       status: 'active',
       assigned_groups: ['Care Team'],
+      visit_type: '',
     }
   )
 
@@ -232,6 +233,15 @@ function CardForm({ initial, onSave, onClose }) {
         <div>
           <label htmlFor="care_title" style={{ fontFamily: SITE_FONT }}>Care Title *</label>
           <input id="care_title" style={inputStyle} placeholder="Care Title" value={form.care_title} onChange={(e) => update('care_title', e.target.value)} required />
+        </div>
+        <div>
+          <label htmlFor="visit_type" style={{ fontFamily: SITE_FONT }}>Type of Visit Needed</label>
+          <select id="visit_type" style={inputStyle} value={form.visit_type} onChange={(e) => update('visit_type', e.target.value)}>
+            <option value="">— None —</option>
+            {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label htmlFor="location" style={{ fontFamily: SITE_FONT }}>Location</label>
@@ -369,7 +379,11 @@ function InteractionForm({ cardId, onSaved }) {
         </div>
         <div>
           <label htmlFor="interaction-date" style={{ fontFamily: SITE_FONT }}>Date & Time</label>
-          <input id="interaction-date" type="datetime-local" style={inputStyle} value={form.interacted_at} onChange={(e) => setForm((prev) => ({ ...prev, interacted_at: e.target.value }))} />
+          <input
+            id="interaction-date"
+            type="datetime-local"
+            style={{ ...inputStyle, maxWidth: '100%' }} 
+            value={form.interacted_at} onChange={(e) => setForm((prev) => ({ ...prev, interacted_at: e.target.value }))} />
         </div>
         <div>
           <label htmlFor="interaction-notes" style={{ fontFamily: SITE_FONT }}>Notes *</label>
@@ -528,22 +542,22 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           width: '100%',
         }}
       >
-        {/* Care Type Badge */}
+        {/* Visit Type Badge (top-left) — falls back gracefully if not set */}
         <div
           style={{
             display: 'inline-block',
-            background: type.bg,
-            color: type.color,
+            background: '#e8f0e9',
+            color: '#4f6b57',
             padding: '0.2rem 0.65rem',
             borderRadius: '0.5rem',
-            border: `1px solid ${type.color}`,
+            border: '1px solid #a8c4ab',
             fontSize: '0.78rem',
             fontWeight: '400',
             fontFamily: SITE_FONT,
             flexShrink: 0,
           }}
         >
-          {type.label}
+          {card.visit_type ? ` ${card.visit_type}` : ' Visit Type TBD'}
         </div>
 
         {/* Assignment Badge (hide when completed) */}
@@ -1134,30 +1148,57 @@ cards = [...cards].sort((a, b) => {
             <h1 className="burden-title" style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', fontFamily: SITE_FONT, flex: 1, whiteSpace: 'nowrap' }}>BurdenBear</h1>
           </div>
           
-<button
-  type="button"
-  onClick={() => setShowMenu((prev) => !prev)}
-  style={{
-    background: 'white',
-    border: '1px solid #cfd8cc',
-    borderRadius: '1rem',
-    padding: '1rem',
-    cursor: 'pointer',
-    fontSize: '1.2rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '48px',
-    height: '48px',
-  }}
->
+  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+    {/* New Card Button */}
+    <button
+      type="button"
+      onClick={() => { setEditingCard(null); setShowAddCard(true) }}
+      title="New Care Card"
+      style={{
+        background: '#6f8f73',
+        border: 'none',
+        borderRadius: '1rem',
+        padding: '1rem',
+        cursor: 'pointer',
+        fontSize: '1.5rem',
+        fontWeight: '300',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '48px',
+        height: '48px',
+        color: 'white',
+        lineHeight: 1,
+      }}
+    >
+      +
+    </button>
 
-    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-    <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-  </button>
+    {/* Hamburger Menu */}
+    <button
+      type="button"
+      onClick={() => setShowMenu((prev) => !prev)}
+      style={{
+        background: 'white',
+        border: '1px solid #cfd8cc',
+        borderRadius: '1rem',
+        padding: '1rem',
+        cursor: 'pointer',
+        fontSize: '1.2rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '48px',
+        height: '48px',
+      }}
+    >
+      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
+    </button>
+  </div>
 
 {showMenu && (
   <div
@@ -1363,35 +1404,6 @@ cards = [...cards].sort((a, b) => {
           onEdit={(card) => { setSelectedCard(null); setEditingCard(card); setShowAddCard(true) }}
         />
       )}
-
-{/* Floating Action Button */}
-<button
-  onClick={() => { setEditingCard(null); setShowAddCard(true) }}
-  style={{
-    position: 'fixed',
-    bottom: '2rem',
-    right: '2rem',
-    width: '60px',
-    height: '60px',
-    borderRadius: '50%',
-    background: '#6f8f73',
-    color: 'white',
-    border: 'none',
-    fontSize: '2rem',
-    fontWeight: '300',
-    cursor: 'pointer',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 50,
-    transition: 'all 0.2s ease',
-    fontFamily: SITE_FONT,
-  }}
-  title="New Care Card"
->
-  +
-</button>
       
     </div>
   )
