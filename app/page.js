@@ -12,6 +12,7 @@ const CARE_TYPES = [
   { value: 'grief', label: 'Grief', color: '#4f6b57', bg: '#e3ece5' },
   { value: 'pregnancy', label: 'Pregnancy', color: '#8c7740', bg: '#f4ecd7' },
   { value: 'homebound', label: 'Homebound', color: '#5a4a7a', bg: '#eae4f4' },
+  { value: 'prayer', label: 'Prayer', color: '#7a6a35', bg: '#f4f0da' },
   { value: 'other', label: 'Other', color: '#3f4a56', bg: '#e6ebf0' },
 ]
 
