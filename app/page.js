@@ -372,7 +372,7 @@ function InteractionForm({ cardId, onSaved }) {
         <div>
           <label htmlFor="interaction-type" style={{ fontFamily: SITE_FONT }}>Type</label>
           <select id="interaction-type" style={inputStyle} value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}>
-            {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((type) => (
+            {['Visit', 'Phone Call', 'Text', 'Email', 'Member Care Meeting', 'Other'].map((type) => (
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
@@ -421,7 +421,7 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
       <div>
         <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#4f6b57', fontFamily: SITE_FONT }}>Type</label>
         <select style={inputStyle} value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}>
-          {['Visit', 'Phone Call', 'Text', 'Email', 'Other'].map((t) => (
+          {['Visit', 'Phone Call', 'Text', 'Email', 'Member Care Meeting', 'Other'].map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
@@ -936,7 +936,7 @@ useEffect(() => {
       if (cardsError) throw cardsError
       if (cardsData?.length > 0) {
         const cardIds = cardsData.map((card) => card.id)
-        const { data: interactionsData, error: interactionsError } = await supabase.from('interactions').select('care_card_id, interacted_at').in('care_card_id', cardIds).order('interacted_at', { ascending: false })
+        const { data: interactionsData, error: interactionsError } = await supabase.from('interactions').select('care_card_id, interacted_at').in('care_card_id', cardIds).neq('type', 'Member Care Meeting').order('interacted_at', { ascending: false })
         if (interactionsError) throw interactionsError
         const latestInteractions = {}
         interactionsData?.forEach((interaction) => {
