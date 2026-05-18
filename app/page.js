@@ -163,6 +163,7 @@ function CardForm({ initial, onSave, onClose }) {
       notes: '',
       follow_up_interval: 'weekly',
       status: 'active',
+      assigned_groups: ['Care Team'],
     }
   )
 
@@ -239,6 +240,54 @@ function CardForm({ initial, onSave, onClose }) {
         <div>
           <label htmlFor="notes" style={{ fontFamily: SITE_FONT }}>Notes</label>
           <textarea id="notes" style={{ ...inputStyle, minHeight: '110px', resize: 'vertical' }} placeholder="Notes" value={form.notes} onChange={(e) => update('notes', e.target.value)} />
+        </div>
+        <div>
+        <div>
+          <label style={{ fontFamily: SITE_FONT }}>
+            Assigned To
+          </label>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '1rem',
+              marginTop: '0.5rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {['Staff', 'Care Team'].map((group) => (
+              <label
+                key={group}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  fontSize: '0.95rem',
+                  fontFamily: SITE_FONT,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={(form.assigned_groups || []).includes(group)}
+                  onChange={(e) => {
+                    const current = form.assigned_groups || []
+
+                    if (e.target.checked) {
+                      update('assigned_groups', [...current, group])
+                    } else {
+                      update(
+                        'assigned_groups',
+                        current.filter((g) => g !== group)
+                      )
+                    }
+                  }}
+                />
+                {group}
+              </label>
+            ))}
+          </div>
+        </div>
         </div>
         <div>
           <label htmlFor="follow_up" style={{ fontFamily: SITE_FONT }}>Follow-up Frequency</label>
@@ -409,9 +458,6 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   } else if (overdue) {
     borderColor = '#dc2626'
     borderWidth = '3px'
-  } else if (soon) {
-    borderColor = '#d97706'
-    borderWidth = '3px'
   }
 
   let indicatorBg = '#f9fafb'
@@ -422,15 +468,12 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   } else if (overdue) {
     indicatorBg = '#fef2f2'
     indicatorBorder = '#dc2626'
-  } else if (soon) {
-    indicatorBg = '#fffbeb'
-    indicatorBorder = '#d97706'
   }
 
   let lastContactColor = '#6f8f73'
   if (isCompleted) lastContactColor = '#4f6b57'
   else if (overdue) lastContactColor = '#dc2626'
-  else if (soon) lastContactColor = '#d97706'
+  else if (soon) lastContactColor = '#4f6b57'
 
   return (
     <div
@@ -482,10 +525,10 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '0.75rem',
-          paddingRight: isCompleted ? '3.5rem' : '0',
-          marginTop: '0.15rem',
+          width: '100%',
         }}
       >
+        {/* Care Type Badge */}
         <div
           style={{
             display: 'inline-block',
@@ -503,41 +546,32 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           {type.label}
         </div>
 
-        {!isCompleted && overdue && (
+        {/* Assignment Badge (hide when completed) */}
+        {!isCompleted && (
           <div
             style={{
-              width: '28px',
-              height: '28px',
-              background: '#fee2e2',
-              border: '1px solid #dc2626',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.95rem',
+              display: 'inline-block',
+              background:
+                card.assigned_groups?.includes('Staff')
+                  ? '#f3e8ff'
+                  : '#dbeafe',
+              color:
+                card.assigned_groups?.includes('Staff')
+                  ? '#7c3aed'
+                  : '#2563eb',
+              padding: '0.2rem 0.65rem',
+              borderRadius: '0.5rem',
+              border:
+                card.assigned_groups?.includes('Staff')
+                  ? '1px solid #7c3aed'
+                  : '1px solid #2563eb',
+              fontSize: '0.78rem',
+              fontWeight: '400',
+              fontFamily: SITE_FONT,
               flexShrink: 0,
             }}
           >
-            ⏰
-          </div>
-        )}
-
-        {!isCompleted && !overdue && soon && (
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              background: '#fffbeb',
-              border: '1px solid #d97706',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.95rem',
-              flexShrink: 0,
-            }}
-          >
-            🕐
+            {(card.assigned_groups || ['Care Team']).join(' • ')}
           </div>
         )}
       </div>
@@ -587,6 +621,16 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           </div>
           <div style={{ color: lastContactColor, fontWeight: '600', fontFamily: SITE_FONT }}>
             Last contacted: {formatDate(card.last_interaction_at)}
+          <div
+            style={{
+              color: '#4f6b57',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              fontFamily: SITE_FONT,
+            }}
+          >
+            Next interaction: {getNextInteractionDate(card)}
+          </div>
           </div>
         </div>
       </div>
@@ -922,16 +966,42 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
 
   const activeCards = useMemo(() => cards.filter((c) => c.status !== 'completed'), [cards])
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
-  const needsAttentionToday = useMemo(() => activeCards.filter(isDueToday), [activeCards])
-  const needsAttentionThisWeek = useMemo(() => activeCards.filter(isDueThisWeek), [activeCards])
+  const staffCards = useMemo(
+  () => activeCards.filter((c) => c.assigned_groups?.includes('Staff')),
+  [activeCards]
+)
+  const careTeamCards = useMemo(
+  () => activeCards.filter((c) => c.assigned_groups?.includes('Care Team')),
+  [activeCards]
+)
 
 const visibleCards = useMemo(() => {
   let cards
-  if (activeTab === 'today') cards = needsAttentionToday
-  else if (activeTab === 'thisweek') cards = needsAttentionThisWeek
+  if (activeTab === 'staff') cards = staffCards
+  else if (activeTab === 'careteam') cards = careTeamCards
   else if (activeTab === 'completed') cards = completedCards
   else if (categoryFilter === 'all') cards = activeCards
   else cards = activeCards.filter((c) => c.care_type === categoryFilter)
+
+cards = [...cards].sort((a, b) => {
+  const getDueDate = (card) => {
+    if (!card.last_interaction_at) return new Date(0)
+
+    const last = new Date(card.last_interaction_at)
+
+    if (card.follow_up_interval === 'daily') {
+      last.setDate(last.getDate() + 1)
+    } else if (card.follow_up_interval === 'weekly') {
+      last.setDate(last.getDate() + 7)
+    } else if (card.follow_up_interval === 'monthly') {
+      last.setDate(last.getDate() + 30)
+    }
+
+    return last
+  }
+
+  return getDueDate(a) - getDueDate(b)
+})
 
   if (!searchQuery.trim()) return cards
   const q = searchQuery.toLowerCase()
@@ -939,7 +1009,7 @@ const visibleCards = useMemo(() => {
     card.title?.toLowerCase().includes(q) ||
     card.name?.toLowerCase().includes(q)
   )
-}, [activeCards, needsAttentionToday, needsAttentionThisWeek, completedCards, activeTab, categoryFilter, searchQuery])
+}, [activeCards, staffCards, careTeamCards, completedCards, activeTab, categoryFilter, searchQuery])
 
   const saveCard = async (form) => {
     try {
@@ -1234,11 +1304,19 @@ const visibleCards = useMemo(() => {
   </button>
 
   <div style={{ display: 'flex', gap: '0.75rem' }}>
-    <button className="tab-btn today-tab" onClick={() => setActiveTab('today')} style={tabButtonStyle(activeTab === 'today')}>
-      Today ({needsAttentionToday.length})
+    <button
+      className="tab-btn today-tab"
+      onClick={() => setActiveTab('staff')}
+      style={tabButtonStyle(activeTab === 'staff')}
+    >
+      Staff ({staffCards.length})
     </button>
-    <button className="tab-btn thisweek-tab" onClick={() => setActiveTab('thisweek')} style={tabButtonStyle(activeTab === 'thisweek')}>
-      This Week ({needsAttentionThisWeek.length})
+    <button
+      className="tab-btn thisweek-tab"
+      onClick={() => setActiveTab('careteam')}
+      style={tabButtonStyle(activeTab === 'careteam')}
+    >
+      Care Team ({careTeamCards.length})
     </button>
   </div>
 </div>
