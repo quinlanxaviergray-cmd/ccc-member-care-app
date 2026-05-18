@@ -140,9 +140,12 @@ const removeAccess = async (id) => {
     fontFamily: SITE_FONT,
   }
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', fontFamily: SITE_FONT, padding: '1.5rem 1rem' }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+return (
+  <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', fontFamily: SITE_FONT, padding: '1.5rem 1rem' }}>
+    <style>{`
+      * { font-family: 'Avenir Next', Avenir, Helvetica, Arial, sans-serif !important; }
+    `}</style>
+    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
 
         {/* Header */}
         <div style={{ ...cardStyle, textAlign: 'center', marginBottom: '1.5rem' }}>
