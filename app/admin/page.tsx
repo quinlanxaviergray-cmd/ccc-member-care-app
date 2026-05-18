@@ -1,42 +1,21 @@
-// Example: admin/users-page.jsx or admin/page.tsx
-import { createClient } from '@/utils/supabase-admin' // uses service role key
+import { createClient } from '@/utils/supabase-admin'
 
 export default async function UsersPage() {
   const supabase = createClient()
-  const { data: users } = await supabase.auth.admin.listUsers()
 
-  async function handleDeny(userId: string) {
-    // Call the Edge Function
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/delete-user`,
-      {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
-        },
-        body: JSON.stringify({ userId })
-      }
-    )
+  const { data: users, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-    const result = await response.json()
-    
-    if (result.success) {
-      // Refresh the user list or remove from UI
-      revalidatePath('/admin/users')
-    } else {
-      alert('Error: ' + result.error)
-    }
+  if (error) {
+    throw new Error(error.message)
   }
 
   return (
-    <div>
-      {users.users.map((user) => (
-        <div key={user.id}>
-          <span>{user.email}</span>
-          <button onClick={() => handleDeny(user.id)}>Deny</button>
-        </div>
-      ))}
-    </div>
+    <main style={{ padding: 24 }}>
+      <h1>Admin Users</h1>
+      <pre>{JSON.stringify(users, null, 2)}</pre>
+    </main>
   )
 }
