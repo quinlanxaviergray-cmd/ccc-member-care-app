@@ -1105,6 +1105,7 @@ cards = [...cards].sort((a, b) => {
           .close-btn-mobile { display: flex !important; }
           .close-btn-desktop { display: none !important; }
           .cards-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+          input[type="datetime-local"] { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
           .card-detail-header { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
           .card-detail-actions { flex-wrap: wrap !important; width: 100% !important; }
           .card-detail-actions button { flex: 1 !important; min-width: 80px !important; }
