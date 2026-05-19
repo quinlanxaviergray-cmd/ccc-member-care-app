@@ -462,15 +462,9 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   const isCompleted = card.status === 'completed'
   const [completing, setCompleting] = useState(false)
 
-  const handleComplete = async (e) => {
+  const handleComplete = (e) => {
     e.stopPropagation()
-    if (!confirm('Mark this care card as complete? It will move to the Completed tab.')) return
-    setCompleting(true)
-    try {
-      await onComplete(card.id)
-    } finally {
-      setCompleting(false)
-    }
+    onClick()
   }
 
   let borderColor = '#d9e2d6'
@@ -680,7 +674,7 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
             marginTop: 'auto',
           }}
         >
-          {completing ? 'Completing...' : '✓ Click to Complete'}
+          {completing ? 'Saving...' : '+ Add Interaction'}
         </button>
       )}
     </div>
@@ -1326,12 +1320,17 @@ cards = [...cards].sort((a, b) => {
   <div className="tab-btn" style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 0 }}>
     <select
       style={dropdownStyle}
-      value={activeTab === 'browse' ? categoryFilter : '__browse__'}
+      value={activeTab === 'completed' ? '__completed__' : activeTab === 'browse' ? categoryFilter : '__browse__'}
       onChange={(e) => {
-        setActiveTab('browse')
-        setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
+        if (e.target.value === '__completed__') {
+          setActiveTab('completed')
+          setCategoryFilter('all')
+        } else {
+          setActiveTab('browse')
+          setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
+        }
       }}
-      onFocus={() => { if (activeTab !== 'browse') setActiveTab('browse') }}
+      onFocus={() => {}}
     >
       <option value="all">All Cards ({activeCards.length})</option>
       {CARE_TYPES.map((type) => (
