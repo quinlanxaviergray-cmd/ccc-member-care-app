@@ -49,36 +49,42 @@ function isDueToday(card) {
 
 function isDueThisWeek(card) {
   if (card.status === 'completed') return false
-  if (isDueToday(card)) return false // already on Today tab
 
   const now = new Date()
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  // Find the upcoming Saturday (end of church week)
-  const dayOfWeek = todayDate.getDay() // 0 = Sunday, 6 = Saturday
-  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7 || 7
-  const saturday = new Date(todayDate)
-  saturday.setDate(todayDate.getDate() + daysUntilSaturday)
+  // Find the most recent Monday at 12:01 AM
+  const dayOfWeek = todayDate.getDay() // 0 = Sunday, 1 = Monday, ...
+  const daysFromMonday = (dayOfWeek + 6) % 7
+  const weekStart = new Date(todayDate)
+  weekStart.setDate(todayDate.getDate() - daysFromMonday)
+  weekStart.setHours(0, 1, 0, 0)
 
-  if (!card.last_interaction_at) return false // handled by isDueToday
+  // Week ends next Monday at 12:00 AM (midnight)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7)
+  weekEnd.setHours(0, 0, 0, 0)
+
+  // Never contacted → always needs interaction
+  if (!card.last_interaction_at) return true
 
   const last = new Date(card.last_interaction_at)
   const lastDate = new Date(last.getFullYear(), last.getMonth(), last.getDate())
-  const diffDays = (todayDate - lastDate) / (1000 * 60 * 60 * 24)
 
   let nextDueDate = null
-  if (card.follow_up_interval === 'daily') return false // daily is always Today
-  if (card.follow_up_interval === 'weekly') {
+  if (card.follow_up_interval === 'daily') {
+    nextDueDate = new Date(lastDate)
+    nextDueDate.setDate(lastDate.getDate() + 1)
+  } else if (card.follow_up_interval === 'weekly') {
     nextDueDate = new Date(lastDate)
     nextDueDate.setDate(lastDate.getDate() + 7)
-  }
-  if (card.follow_up_interval === 'monthly') {
+  } else if (card.follow_up_interval === 'monthly') {
     nextDueDate = new Date(lastDate)
     nextDueDate.setDate(lastDate.getDate() + 30)
   }
 
   if (!nextDueDate) return false
-  return nextDueDate > todayDate && nextDueDate <= saturday
+  return nextDueDate >= weekStart && nextDueDate < weekEnd
 }
 
 function isUpcomingSoon(card) {
@@ -910,6 +916,7 @@ export default function Home() {
   const [showMenu, setShowMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [thisWeekFilter, setThisWeekFilter] = useState('all') // 'all' | 'staff' | 'careteam'
 
 useEffect(() => {
   supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -981,20 +988,16 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
 
   const activeCards = useMemo(() => cards.filter((c) => c.status !== 'completed'), [cards])
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
-  const staffCards = useMemo(
-  () => activeCards.filter((c) => c.assigned_groups?.includes('Staff')),
-  [activeCards]
-)
-  const careTeamCards = useMemo(
-  () => activeCards.filter((c) => c.assigned_groups?.includes('Care Team')),
-  [activeCards]
-)
+
 
 const visibleCards = useMemo(() => {
   let cards
-  if (activeTab === 'staff') cards = staffCards
-  else if (activeTab === 'careteam') cards = careTeamCards
-  else if (activeTab === 'completed') cards = completedCards
+    if (activeTab === 'thisweek') {
+      cards = activeCards.filter(isDueThisWeek)
+      if (thisWeekFilter === 'staff') cards = cards.filter(c => c.assigned_groups?.includes('Staff'))
+      else if (thisWeekFilter === 'careteam') cards = cards.filter(c => c.assigned_groups?.includes('Care Team'))
+    }
+    else if (activeTab === 'completed') cards = completedCards
   else if (categoryFilter === 'all') cards = activeCards
   else cards = activeCards.filter((c) => c.care_type === categoryFilter)
 
@@ -1024,7 +1027,7 @@ cards = [...cards].sort((a, b) => {
     card.title?.toLowerCase().includes(q) ||
     card.name?.toLowerCase().includes(q)
   )
-}, [activeCards, staffCards, careTeamCards, completedCards, activeTab, categoryFilter, searchQuery])
+}, [activeCards, completedCards, activeTab, categoryFilter, searchQuery, thisWeekFilter])
 
   const saveCard = async (form) => {
     try {
@@ -1140,8 +1143,8 @@ cards = [...cards].sort((a, b) => {
 }
 .completed-tab { display: none !important; }
         }
-        .tab-btn:hover { font-weight: 400 !important; }
-        select option { font-weight: 400 !important; }
+        .tab-btn:hover { font-weight: inherit !important; }
+        select option { font-weight: inherit !important; }
       `}</style>
 
       <header style={{ padding: '1.5rem 1rem 1rem', position: 'relative', zIndex: 100 }}>
@@ -1346,23 +1349,57 @@ cards = [...cards].sort((a, b) => {
     Completed ({completedCards.length})
   </button>
 
-  <div style={{ display: 'flex', gap: '0.75rem' }}>
+<div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
     <button
-      className="tab-btn today-tab"
-      onClick={() => setActiveTab('staff')}
-      style={tabButtonStyle(activeTab === 'staff')}
+      className="tab-btn"
+      onClick={() => { setActiveTab('thisweek'); setThisWeekFilter('all') }}
+      style={tabButtonStyle(activeTab === 'thisweek')}
     >
-      Staff ({staffCards.length})
-    </button>
-    <button
-      className="tab-btn thisweek-tab"
-      onClick={() => setActiveTab('careteam')}
-      style={tabButtonStyle(activeTab === 'careteam')}
-    >
-      Care Team ({careTeamCards.length})
+      This Week ({activeCards.filter(isDueThisWeek).length})
     </button>
   </div>
 </div>
+
+{activeTab === 'thisweek' && (
+        <div style={{ padding: '0 1rem 1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            onClick={() => setThisWeekFilter(thisWeekFilter === 'staff' ? 'all' : 'staff')}
+            style={{
+              background: thisWeekFilter === 'staff' ? '#7c3aed' : 'white',
+              border: '1px solid #7c3aed',
+              color: thisWeekFilter === 'staff' ? 'white' : '#7c3aed',
+              borderRadius: '999px',
+              padding: '0.65rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: thisWeekFilter === 'staff' ? '700' : '400',
+              cursor: 'pointer',
+              fontFamily: SITE_FONT,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Staff
+          </button>
+          <button
+            onClick={() => setThisWeekFilter(thisWeekFilter === 'careteam' ? 'all' : 'careteam')}
+            style={{
+              background: thisWeekFilter === 'careteam' ? '#2563eb' : 'white',
+              border: '1px solid #2563eb',
+              color: thisWeekFilter === 'careteam' ? 'white' : '#2563eb',
+              borderRadius: '999px',
+              padding: '0.65rem 1.5rem',
+              fontSize: '1rem',
+              fontWeight: thisWeekFilter === 'careteam' ? '700' : '400',
+              cursor: 'pointer',
+              fontFamily: SITE_FONT,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Care Team
+          </button>
+        </div>
+      )}
+
+      <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}></main>
 
       <main style={{ padding: '0 1rem 2rem', maxWidth: '1400px', margin: '0 auto' }}>
         {loading ? (
