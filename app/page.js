@@ -993,7 +993,7 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
 const visibleCards = useMemo(() => {
   let cards
     if (activeTab === 'thisweek') {
-      cards = activeCards.filter(isDueThisWeek)
+      cards = activeCards.filter(c => c.care_type !== 'prayer' && isDueThisWeek(c))
       if (thisWeekFilter === 'staff') cards = cards.filter(c => c.assigned_groups?.includes('Staff'))
       else if (thisWeekFilter === 'careteam') cards = cards.filter(c => c.assigned_groups?.includes('Care Team'))
     }

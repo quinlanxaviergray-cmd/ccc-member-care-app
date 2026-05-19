@@ -81,10 +81,13 @@ export default function HowTo() {
           <p style={subheadingStyle}>Care Types</p>
           <p style={textStyle}>Choose the category that best describes the person's situation:</p>
           <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li><strong>Grief</strong> — Someone who has experienced a loss and needs ongoing emotional and spiritual support.</li>
             <li><strong>Short-Term Medical</strong> — Someone recovering from a surgery, illness, or temporary medical situation.</li>
             <li><strong>Long-Term Medical</strong> — Someone managing a chronic illness or ongoing medical condition.</li>
+            <li><strong>Grief</strong> — Someone who has experienced a loss and needs ongoing emotional and spiritual support.</li>
             <li><strong>Pregnancy</strong> — Someone who is expecting or has recently had a baby and could use extra care and encouragement.</li>
+            <li><strong>Homebound</strong> — Someone who is unable to leave their home and needs regular in-person or phone support.</li>
+            <li><strong>Prayer</strong> — Someone who has requested prayer. Prayer cards are tracked separately and do not appear in the This Week tab.</li>
+            <li><strong>Other</strong> — Any situation that doesn't fit neatly into the categories above.</li>
           </ul>
 
           <p style={subheadingStyle}>Follow-Up Frequency</p>
@@ -110,24 +113,22 @@ export default function HowTo() {
         <div style={sectionStyle}>
           <h2 style={headingStyle}>Dashboard Tabs</h2>
 
-          <p style={subheadingStyle}>Today</p>
+          <p style={subheadingStyle}>All Cards</p>
           <p style={textStyle}>
-            Shows all Care Cards that need attention today. This includes anyone who is overdue for contact as well as daily frequency cards that haven't been contacted yet today. Cards on this tab are highlighted with a red border as a visual reminder.
+            The default view. Browse all active Care Cards and use the dropdown to filter by care type — Grief, Short-Term Medical, Long-Term Medical, Pregnancy, Homebound, Prayer, or Other.
           </p>
 
           <p style={subheadingStyle}>This Week</p>
           <p style={textStyle}>
-            Shows Care Cards whose next contact date falls before the end of the current week (Saturday). This is a great tab to check at the beginning of the week to plan ahead. Cards on this tab are highlighted with an orange border.
+            Shows every Care Card whose next interaction is due between Monday at 12:01 AM and the following Monday at 12:00 AM. This tab resets automatically each Monday morning, making it the best place to start your week and plan who needs to be contacted. Prayer cards are excluded from this tab and should be managed separately.
           </p>
-
-          <p style={subheadingStyle}>All Cards</p>
           <p style={textStyle}>
-            Browse all active Care Cards. Use the dropdown at the top left to filter by care type — Grief, Short-Term Medical, Long-Term Medical, or Pregnancy.
+            When viewing This Week, use the <strong>Staff</strong> and <strong>Care Team</strong> filter buttons that appear below the tabs to narrow the list by who the card is assigned to. These filters are toggles — tap one to activate it, tap again to show all.
           </p>
 
           <p style={subheadingStyle}>Completed</p>
           <p style={textStyle}>
-            A record of all Care Cards that have been marked as complete. These cards are no longer active but remain in the system for reference.
+            A record of all Care Cards that have been marked as complete. These cards are no longer active but remain in the system for reference. You can reactivate a completed card at any time by opening it and tapping <strong>Make Active</strong>.
           </p>
         </div>
 
@@ -155,10 +156,11 @@ export default function HowTo() {
         <div style={sectionStyle}>
           <h2 style={headingStyle}>Tips for Your Team</h2>
           <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li>Check the <strong>Today</strong> tab every morning to see who needs to be contacted that day.</li>
-            <li>Check the <strong>This Week</strong> tab on Mondays to plan your week of care visits and calls.</li>
+            <li>Check the <strong>This Week</strong> tab every Monday morning to plan your week of care visits and calls.</li>
+            <li>Use the <strong>Staff</strong> and <strong>Care Team</strong> filter buttons on the This Week tab to divide up responsibilities for the week.</li>
             <li>Always log an interaction immediately after contacting someone so the rest of the team knows it's been done.</li>
             <li>Use the Notes field on Care Cards to record important context — like family situations, prayer requests, or specific needs.</li>
+            <li>Prayer cards won't appear in This Week — check All Cards and filter by Prayer to review those separately.</li>
             <li>If you're unsure which care type to use, choose the one that best describes the primary reason the person needs care right now.</li>
           </ul>
         </div>
