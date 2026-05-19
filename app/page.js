@@ -12,7 +12,7 @@ const CARE_TYPES = [
   { value: 'grief', label: 'Grief', color: '#4f6b57', bg: '#e3ece5' },
   { value: 'pregnancy', label: 'Pregnancy', color: '#8c7740', bg: '#f4ecd7' },
   { value: 'homebound', label: 'Homebound', color: '#5a4a7a', bg: '#eae4f4' },
-  { value: 'prayer', label: 'Prayer', color: '#7a6a35', bg: '#f4f0da' },
+  { value: 'prayer', label: 'On Our Radar', color: '#7a6a35', bg: '#f4f0da' },
   { value: 'other', label: 'Other', color: '#3f4a56', bg: '#e6ebf0' },
 ]
 
@@ -31,6 +31,7 @@ function formatDate(date) {
 
 function isDueToday(card) {
   if (card.status === 'completed') return false
+  if (card.care_type === 'prayer') return false
   const now = new Date()
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
@@ -49,6 +50,7 @@ function isDueToday(card) {
 
 function isDueThisWeek(card) {
   if (card.status === 'completed') return false
+  if (card.care_type === 'prayer') return false
 
   const now = new Date()
   const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -640,8 +642,9 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           <div style={{ color: '#6b7280' }}>
             📍 {card.location || 'No location'}
           </div>
-          <div style={{ color: lastContactColor, fontWeight: '600', fontFamily: SITE_FONT }}>
+          <div style={{ color: card.care_type === 'prayer' ? '#6b7280' : lastContactColor, fontWeight: '600', fontFamily: SITE_FONT }}>
             Last contacted: {formatDate(card.last_interaction_at)}
+          {card.care_type !== 'prayer' && (
           <div
             style={{
               color: '#4f6b57',
@@ -652,6 +655,7 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           >
             Next interaction: {getNextInteractionDate(card)}
           </div>
+          )}
           </div>
         </div>
       </div>
@@ -993,11 +997,11 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
 const visibleCards = useMemo(() => {
   let cards
     if (activeTab === 'thisweek') {
-      cards = activeCards.filter(c => c.care_type !== 'prayer' && isDueThisWeek(c))
-      if (thisWeekFilter === 'staff') cards = cards.filter(c => c.assigned_groups?.includes('Staff'))
-      else if (thisWeekFilter === 'careteam') cards = cards.filter(c => c.assigned_groups?.includes('Care Team'))
-    }
-    else if (activeTab === 'completed') cards = completedCards
+    cards = activeCards.filter(c => c.care_type !== 'prayer' && isDueThisWeek(c))
+    if (thisWeekFilter === 'staff') cards = cards.filter(c => c.assigned_groups?.includes('Staff'))
+    else if (thisWeekFilter === 'careteam') cards = cards.filter(c => c.assigned_groups?.includes('Care Team'))
+  }
+  else if (activeTab === 'completed') cards = completedCards
   else if (categoryFilter === 'all') cards = activeCards
   else cards = activeCards.filter((c) => c.care_type === categoryFilter)
 
@@ -1324,13 +1328,8 @@ cards = [...cards].sort((a, b) => {
       style={dropdownStyle}
       value={activeTab === 'browse' ? categoryFilter : '__browse__'}
       onChange={(e) => {
-        if (e.target.value === '__completed__') {
-          setActiveTab('completed')
-          setCategoryFilter('all')
-        } else {
-          setActiveTab('browse')
-          setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
-        }
+        setActiveTab('browse')
+        setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
       }}
       onFocus={() => { if (activeTab !== 'browse') setActiveTab('browse') }}
     >
@@ -1345,9 +1344,6 @@ cards = [...cards].sort((a, b) => {
     <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
   </div>
 
-  <button className="tab-btn completed-tab" onClick={() => setActiveTab('completed')} style={tabButtonStyle(activeTab === 'completed')}>
-    Completed ({completedCards.length})
-  </button>
 
 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
     <button
@@ -1409,10 +1405,10 @@ cards = [...cards].sort((a, b) => {
         ) : visibleCards.length === 0 ? (
           <div style={{ padding: '4rem 2rem', textAlign: 'center', color: '#5f6b63', background: 'rgba(255,255,255,0.5)', borderRadius: '1rem', border: '1px dashed #d9e2d6', fontFamily: SITE_FONT }}>
             <h3 style={{ marginBottom: '0.5rem', fontFamily: SITE_FONT }}>
-              {activeTab === 'completed' ? 'No completed cards yet' : activeTab === 'followup' ? 'No cards need attention right now' : 'No cards yet'}
+              {activeTab === 'completed' ? 'No completed cards yet' : 'No cards yet'}
             </h3>
             <p style={{ fontFamily: SITE_FONT }}>
-              {activeTab === 'completed' ? 'Cards marked complete will appear here.' : activeTab === 'followup' ? 'Everything is up to date.' : 'Create your first care card above to get started!'}
+              {activeTab === 'completed' ? 'Cards marked complete will appear here.' : 'Create your first care card above to get started!'}
             </p>
           </div>
         ) : (

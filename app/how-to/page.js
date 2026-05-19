@@ -86,7 +86,7 @@ export default function HowTo() {
             <li><strong>Grief</strong> — Someone who has experienced a loss and needs ongoing emotional and spiritual support.</li>
             <li><strong>Pregnancy</strong> — Someone who is expecting or has recently had a baby and could use extra care and encouragement.</li>
             <li><strong>Homebound</strong> — Someone who is unable to leave their home and needs regular in-person or phone support.</li>
-            <li><strong>Prayer</strong> — Someone who has requested prayer. Prayer cards are tracked separately and do not appear in the This Week tab.</li>
+            <li><strong>On Our Radar</strong> — Someone your team wants to keep an eye on who doesn't yet need active follow-up. These cards do not appear in the This Week tab.</li>
             <li><strong>Other</strong> — Any situation that doesn't fit neatly into the categories above.</li>
           </ul>
 
@@ -160,7 +160,7 @@ export default function HowTo() {
             <li>Use the <strong>Staff</strong> and <strong>Care Team</strong> filter buttons on the This Week tab to divide up responsibilities for the week.</li>
             <li>Always log an interaction immediately after contacting someone so the rest of the team knows it's been done.</li>
             <li>Use the Notes field on Care Cards to record important context — like family situations, prayer requests, or specific needs.</li>
-            <li>Prayer cards won't appear in This Week — check All Cards and filter by Prayer to review those separately.</li>
+            <li>On Our Radar cards won't appear in This Week — check All Cards and filter by On Our Radar to keep tabs on people who may need more active care soon.</li>
             <li>If you're unsure which care type to use, choose the one that best describes the primary reason the person needs care right now.</li>
           </ul>
         </div>
