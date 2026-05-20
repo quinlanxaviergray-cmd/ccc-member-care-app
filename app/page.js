@@ -1484,7 +1484,7 @@ const navigateCard = (newIndex) => {
     </button>
 
     <button
-      onClick={() => setActiveTab('careteam')}
+      onClick={() => setActiveTab(activeTab === 'careteam' ? 'browse' : 'careteam')}
       style={{
         ...tabButtonStyle(activeTab === 'careteam'),
         ...(activeTab === 'careteam'
