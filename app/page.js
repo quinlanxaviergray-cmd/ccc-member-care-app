@@ -965,6 +965,8 @@ useEffect(() => {
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
       </div>
 
+
+
       <div style={{ marginTop: '1.5rem', fontFamily: SITE_FONT }}>
         <h3 style={{ marginBottom: '0.5rem', fontFamily: SITE_FONT }}>Interaction History</h3>
         {!isCompleted && getNextInteractionDate(card) && (
@@ -1430,18 +1432,6 @@ const navigateCard = (newIndex) => {
       }}
     >
       Staff ({staffCount})
-    </button>
-
-    <button
-      onClick={() => setActiveTab(activeTab === 'careteam' ? 'browse' : 'careteam')}
-      style={{
-        ...tabButtonStyle(activeTab === 'careteam'),
-        ...(activeTab === 'careteam'
-          ? { background: '#2563eb', borderColor: '#2563eb' }
-          : { color: '#2563eb', borderColor: '#2563eb' }),
-      }}
-    >
-      Care Team ({careCount})
     </button>
 
     <button
