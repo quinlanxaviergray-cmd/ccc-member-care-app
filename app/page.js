@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -18,6 +18,23 @@ const CARE_TYPES = [
 
 function getCareType(value) {
   return CARE_TYPES.find((t) => t.value === value) || CARE_TYPES[3]
+}
+
+function getLocalDateValue(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateToInterval(nextDateStr, lastInteractionAt) {
+  if (!nextDateStr || !lastInteractionAt) return 'weekly'
+  const last = new Date(lastInteractionAt)
+  const next = new Date(nextDateStr)
+  const diffDays = Math.round((next - last) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 1) return 'daily'
+  if (diffDays <= 7) return 'weekly'
+  return 'monthly'
 }
 
 function formatDate(date) {
@@ -159,23 +176,23 @@ function Modal({ children, onClose, width = '600px' }) {
   )
 }
 
-function CardForm({ initial, onSave, onClose }) {
+function CardForm({ initial, onSave, onClose, profiles = [], onCallUserId = null }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [form, setForm] = useState(
-    initial || {
-      name: '',
-      phone: '',
-      care_type: 'short_term_medical',
-      care_title: '',
-      location: '',
-      notes: '',
-      follow_up_interval: 'weekly',
-      status: 'active',
-      assigned_groups: ['Care Team'],
-      visit_type: '',
-    }
-  )
+const [form, setForm] = useState(
+  initial || {
+    name: '',
+    phone: '',
+    care_type: 'short_term_medical',
+    care_title: '',
+    location: '',
+    notes: '',
+    follow_up_interval: 'weekly',
+    status: 'active',
+    assigned_to: '',
+    visit_type: '',
+  }
+)
 
   const update = useCallback((key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -191,7 +208,11 @@ function CardForm({ initial, onSave, onClose }) {
     setSaving(true)
     setError('')
     try {
-      await onSave(form)
+      const resolved = { ...form }
+      if (resolved.assigned_to === 'on_call') {
+        resolved.assigned_to = onCallUserId || 'on_call'
+      }
+      await onSave(resolved)
     } catch (err) {
       setError(err.message || 'Failed to save card')
     } finally {
@@ -261,61 +282,39 @@ function CardForm({ initial, onSave, onClose }) {
           <textarea id="notes" style={{ ...inputStyle, minHeight: '110px', resize: 'vertical' }} placeholder="Notes" value={form.notes} onChange={(e) => update('notes', e.target.value)} />
         </div>
         <div>
-        <div>
-          <label style={{ fontFamily: SITE_FONT }}>
-            Assigned To
-          </label>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '1rem',
-              marginTop: '0.5rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            {['Staff', 'Care Team'].map((group) => (
-              <label
-                key={group}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  fontSize: '0.95rem',
-                  fontFamily: SITE_FONT,
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={(form.assigned_groups || []).includes(group)}
-                  onChange={(e) => {
-                    const current = form.assigned_groups || []
-
-                    if (e.target.checked) {
-                      update('assigned_groups', [...current, group])
-                    } else {
-                      update(
-                        'assigned_groups',
-                        current.filter((g) => g !== group)
-                      )
-                    }
-                  }}
-                />
-                {group}
-              </label>
-            ))}
+<div>
+  <label htmlFor="assigned_to" style={{ fontFamily: SITE_FONT }}>Assigned To</label>
+  <select
+    id="assigned_to"
+    style={inputStyle}
+    value={form.assigned_to || ''}
+    onChange={(e) => update('assigned_to', e.target.value)}
+  >
+    <option value="">— Unassigned —</option>
+    <option value="on_call">
+      📞 On Call{onCallUserId && profiles.find((p) => p.id === onCallUserId)
+        ? ` (${profiles.find((p) => p.id === onCallUserId).full_name})`
+        : ''}
+    </option>
+    {profiles.map((p) => (
+      <option key={p.id} value={p.id}>
+        {p.full_name} · {p.role === 'staff' ? 'Staff' : 'Care Team'}
+      </option>
+    ))}
+  </select>
+</div>
+        </div>
+          <div>
+            <label htmlFor="follow_up" style={{ fontFamily: SITE_FONT }}>Default Follow-up Frequency</label>
+            <select id="follow_up" style={inputStyle} value={form.follow_up_interval} onChange={(e) => update('follow_up_interval', e.target.value)}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0.35rem 0 0', fontFamily: SITE_FONT }}>
+              This is a background default. Each interaction lets you set the exact next contact date.
+            </p>
           </div>
-        </div>
-        </div>
-        <div>
-          <label htmlFor="follow_up" style={{ fontFamily: SITE_FONT }}>Follow-up Frequency</label>
-          <select id="follow_up" style={inputStyle} value={form.follow_up_interval} onChange={(e) => update('follow_up_interval', e.target.value)}>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </div>
         <button
           type="submit"
           disabled={saving || !form.name.trim() || !form.care_title.trim()}
@@ -330,14 +329,26 @@ function CardForm({ initial, onSave, onClose }) {
 
 function InteractionForm({ cardId, onSaved }) {
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ type: 'Visit', notes: '', interacted_at: getLocalDateTimeValue() })
+  const today = getLocalDateValue()
+
+  const defaultNext = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 7)
+    return getLocalDateValue(d)
+  })()
+
+  const [form, setForm] = useState({
+    type: 'Visit',
+    notes: '',
+    interacted_at: getLocalDateTimeValue(),
+    next_interaction_date: defaultNext,
+  })
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
     if (!form.notes.trim()) { alert('Please add interaction notes.'); return }
     setSaving(true)
     try {
-      // Get current user's name
       let loggedBy = ''
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
@@ -348,9 +359,7 @@ function InteractionForm({ cardId, onSaved }) {
           .single()
         if (profile?.full_name) {
           const parts = profile.full_name.trim().split(' ')
-          const firstName = parts[0]
-          const lastInitial = parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : ''
-          loggedBy = firstName + lastInitial
+          loggedBy = parts[0] + (parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : '')
         }
       }
 
@@ -361,9 +370,18 @@ function InteractionForm({ cardId, onSaved }) {
         interacted_at: new Date(form.interacted_at).toISOString(),
         logged_by: loggedBy,
       }
-      const { error } = await supabase.from('interactions').insert([payload])
-      if (error) throw error
-      setForm({ type: 'Visit', notes: '', interacted_at: getLocalDateTimeValue() })
+      const { error: intError } = await supabase.from('interactions').insert([payload])
+      if (intError) throw intError
+
+      // Update follow_up_interval based on chosen next date
+      const newInterval = dateToInterval(form.next_interaction_date, form.interacted_at)
+      const { error: cardError } = await supabase
+        .from('care_cards')
+        .update({ follow_up_interval: newInterval, updated_at: new Date().toISOString() })
+        .eq('id', cardId)
+      if (cardError) throw cardError
+
+      setForm({ type: 'Visit', notes: '', interacted_at: getLocalDateTimeValue(), next_interaction_date: defaultNext })
       await onSaved()
     } catch (error) {
       alert(error.message || 'Failed to save interaction')
@@ -372,7 +390,17 @@ function InteractionForm({ cardId, onSaved }) {
     }
   }
 
-  const inputStyle = { width: '100%', padding: '0.95rem 1rem', borderRadius: '0.8rem', border: '1px solid #cfd8cc', fontSize: '1rem', background: 'white', outline: 'none', boxSizing: 'border-box', fontFamily: SITE_FONT }
+  const inputStyle = {
+    width: '100%',
+    padding: '0.95rem 1rem',
+    borderRadius: '0.8rem',
+    border: '1px solid #cfd8cc',
+    fontSize: '1rem',
+    background: 'white',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: SITE_FONT,
+  }
 
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #d9e2d6', fontFamily: SITE_FONT }}>
@@ -380,25 +408,54 @@ function InteractionForm({ cardId, onSaved }) {
       <div style={{ display: 'grid', gap: '1rem' }}>
         <div>
           <label htmlFor="interaction-type" style={{ fontFamily: SITE_FONT }}>Type</label>
-          <select id="interaction-type" style={inputStyle} value={form.type} onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value }))}>
+          <select id="interaction-type" style={inputStyle} value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}>
             {['Visit', 'Phone Call', 'Text', 'Email', 'Update', 'Other'].map((type) => (
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
         </div>
         <div>
-          <label htmlFor="interaction-date" style={{ fontFamily: SITE_FONT }}>Date & Time</label>
+          <label htmlFor="interaction-date" style={{ fontFamily: SITE_FONT }}>Date & Time of Interaction</label>
           <input
             id="interaction-date"
             type="datetime-local"
-            style={{ ...inputStyle, maxWidth: '100%' }} 
-            value={form.interacted_at} onChange={(e) => setForm((prev) => ({ ...prev, interacted_at: e.target.value }))} />
+            style={{ ...inputStyle, maxWidth: '100%' }}
+            value={form.interacted_at}
+            onChange={(e) => setForm((p) => ({ ...p, interacted_at: e.target.value }))}
+          />
         </div>
         <div>
           <label htmlFor="interaction-notes" style={{ fontFamily: SITE_FONT }}>Notes *</label>
-          <textarea id="interaction-notes" style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }} placeholder="Write notes about this interaction" value={form.notes} onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))} required />
+          <textarea
+            id="interaction-notes"
+            style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
+            placeholder="Write notes about this interaction"
+            value={form.notes}
+            onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+            required
+          />
         </div>
-        <button type="submit" disabled={saving} style={{ background: '#4f6b57', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: SITE_FONT }}>
+        <div>
+          <label htmlFor="next-interaction-date" style={{ fontFamily: SITE_FONT }}>
+            Next Interaction Needed By
+          </label>
+          <input
+            id="next-interaction-date"
+            type="date"
+            style={inputStyle}
+            value={form.next_interaction_date}
+            min={today}
+            onChange={(e) => setForm((p) => ({ ...p, next_interaction_date: e.target.value }))}
+          />
+          <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0.35rem 0 0', fontFamily: SITE_FONT }}>
+            This sets the follow-up schedule automatically.
+          </p>
+        </div>
+        <button
+          type="submit"
+          disabled={saving}
+          style={{ background: '#4f6b57', color: 'white', padding: '1rem', border: 'none', borderRadius: '0.8rem', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: SITE_FONT }}
+        >
           {saving ? 'Saving...' : 'Add Interaction'}
         </button>
       </div>
@@ -455,17 +512,13 @@ function InteractionEditForm({ interaction, onSaved, onCancel }) {
   )
 }
 
-function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
+function CareCard({ card, onClick, profiles = [] }) {
   const type = getCareType(card.care_type)
   const overdue = isDueToday(card)
   const soon = isDueThisWeek(card) && !overdue
   const isCompleted = card.status === 'completed'
-  const [completing, setCompleting] = useState(false)
-
-  const handleComplete = (e) => {
-    e.stopPropagation()
-    onClick()
-  }
+  const assignedPerson = profiles.find((p) => p.id === card.assigned_to)
+  const completing = false // CareCard doesn't handle completing directly; it calls onClick
 
   let borderColor = '#d9e2d6'
   let borderWidth = '1px'
@@ -491,6 +544,34 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
   if (isCompleted) lastContactColor = '#4f6b57'
   else if (overdue) lastContactColor = '#dc2626'
   else if (soon) lastContactColor = '#4f6b57'
+
+  // Build the top-right assignment badge label + colors
+  const assignmentBadge = (() => {
+    if (isCompleted) return null
+    if (assignedPerson) {
+      const isStaff = assignedPerson.role === 'staff'
+      return {
+        label: assignedPerson.full_name,
+        bg: isStaff ? '#f3e8ff' : '#dbeafe',
+        color: isStaff ? '#7c3aed' : '#2563eb',
+        border: isStaff ? '#7c3aed' : '#2563eb',
+      }
+    }
+    if (card.assigned_to === 'on_call') {
+      return {
+        label: '📞 On Call',
+        bg: '#fff7ed',
+        color: '#c2410c',
+        border: '#c2410c',
+      }
+    }
+    return {
+      label: 'Unassigned',
+      bg: '#f9fafb',
+      color: '#9ca3af',
+      border: '#d1d5db',
+    }
+  })()
 
   return (
     <div
@@ -545,7 +626,7 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           width: '100%',
         }}
       >
-        {/* Visit Type Badge (top-left) — falls back gracefully if not set */}
+        {/* Visit Type Badge (top-left) */}
         <div
           style={{
             display: 'inline-block',
@@ -563,32 +644,27 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           {card.visit_type ? ` ${card.visit_type}` : ' Visit Type TBD'}
         </div>
 
-        {/* Assignment Badge (hide when completed) */}
-        {!isCompleted && (
+        {/* Assignment Badge (top-right) — shows assigned person name, On Call, or Unassigned */}
+        {assignmentBadge && (
           <div
             style={{
               display: 'inline-block',
-              background:
-                card.assigned_groups?.includes('Staff')
-                  ? '#f3e8ff'
-                  : '#dbeafe',
-              color:
-                card.assigned_groups?.includes('Staff')
-                  ? '#7c3aed'
-                  : '#2563eb',
+              background: assignmentBadge.bg,
+              color: assignmentBadge.color,
               padding: '0.2rem 0.65rem',
               borderRadius: '0.5rem',
-              border:
-                card.assigned_groups?.includes('Staff')
-                  ? '1px solid #7c3aed'
-                  : '1px solid #2563eb',
+              border: `1px solid ${assignmentBadge.border}`,
               fontSize: '0.78rem',
               fontWeight: '400',
               fontFamily: SITE_FONT,
               flexShrink: 0,
+              maxWidth: '160px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
-            {(card.assigned_groups || ['Care Team']).join(' • ')}
+            {assignmentBadge.label}
           </div>
         )}
       </div>
@@ -619,6 +695,7 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           }}
         >
           {card.care_title}
+          {/* Removed assignedPerson inline block here — now lives in the top-right badge */}
         </div>
 
         <div
@@ -638,25 +715,25 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
           </div>
           <div style={{ color: card.care_type === 'prayer' ? '#6b7280' : lastContactColor, fontWeight: '600', fontFamily: SITE_FONT }}>
             Last contacted: {formatDate(card.last_interaction_at)}
-          {card.care_type !== 'prayer' && (
-          <div
-            style={{
-              color: '#4f6b57',
-              fontWeight: '600',
-              fontSize: '0.9rem',
-              fontFamily: SITE_FONT,
-            }}
-          >
-            Next interaction: {getNextInteractionDate(card)}
-          </div>
-          )}
+            {card.care_type !== 'prayer' && (
+              <div
+                style={{
+                  color: '#4f6b57',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  fontFamily: SITE_FONT,
+                }}
+              >
+                Next interaction: {getNextInteractionDate(card)}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {!isCompleted && (
         <button
-          onClick={handleComplete}
+          onClick={(e) => { e.stopPropagation(); onClick() }}
           disabled={completing}
           style={{
             background: completing ? '#9ca3af' : '#4f6b57',
@@ -674,12 +751,14 @@ function CareCard({ card, onClick, onComplete, showYellowSoon = false }) {
             marginTop: 'auto',
           }}
         >
-          {completing ? 'Saving...' : '+ Add Interaction'}
+          + Add Interaction
         </button>
       )}
     </div>
   )
 }
+
+
 
 function getNextInteractionDate(card) {
   if (card.status === 'completed') return null
@@ -710,7 +789,7 @@ function getNextInteractionDate(card) {
   return nextDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
-function CardDetail({ card, onClose, refreshCards, onEdit }) {
+function CardDetail({ card, onClose, refreshCards, onEdit, profiles = [], allVisibleCards = [], currentIndex = 0, onNavigate }) {
   const [interactions, setInteractions] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -718,8 +797,21 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
   const [editingInteractionId, setEditingInteractionId] = useState(null)
   const [deletingInteractionId, setDeletingInteractionId] = useState(null)
   const isCompleted = card.status === 'completed'
+  const assignedPerson = profiles.find((p) => p.id === card.assigned_to)
+  const hasPrev = currentIndex > 0
+  const hasNext = currentIndex < allVisibleCards.length - 1
 
   const [currentUserName, setCurrentUserName] = useState('')
+
+useEffect(() => {
+  const handler = (e) => {
+    if (e.key === 'ArrowLeft' && hasPrev) onNavigate(currentIndex - 1)
+    if (e.key === 'ArrowRight' && hasNext) onNavigate(currentIndex + 1)
+    if (e.key === 'Escape') onClose()
+  }
+  window.addEventListener('keydown', handler)
+  return () => window.removeEventListener('keydown', handler)
+}, [hasPrev, hasNext, currentIndex, onNavigate, onClose])
 
   useEffect(() => {
     const fetchUserName = async () => {
@@ -817,6 +909,29 @@ function CardDetail({ card, onClose, refreshCards, onEdit }) {
       <button className="close-btn-mobile" onClick={onClose} style={{ display: 'none', alignItems: 'center', gap: '0.4rem', border: '1px solid #c4d4c7', background: '#eef4ee', color: '#4f6b57', fontWeight: '700', fontSize: '0.9rem', padding: '0.5rem 1rem', borderRadius: '999px', cursor: 'pointer', marginBottom: '1rem', fontFamily: SITE_FONT }} aria-label="Close">
         ← Close
       </button>
+      {allVisibleCards.length > 1 && (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+    <button
+      onClick={() => hasPrev && onNavigate(currentIndex - 1)}
+      disabled={!hasPrev}
+      style={{ background: hasPrev ? 'white' : '#f3f4f6', border: `1px solid ${hasPrev ? '#cfd8cc' : '#e5e7eb'}`, borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: hasPrev ? 'pointer' : 'not-allowed', fontSize: '1.1rem', color: hasPrev ? '#2f3a34' : '#d1d5db' }}
+      aria-label="Previous card"
+    >
+      ←
+    </button>
+    <span style={{ fontSize: '0.85rem', color: '#6b7280', fontFamily: SITE_FONT }}>
+      {currentIndex + 1} of {allVisibleCards.length}
+    </span>
+    <button
+      onClick={() => hasNext && onNavigate(currentIndex + 1)}
+      disabled={!hasNext}
+      style={{ background: hasNext ? 'white' : '#f3f4f6', border: `1px solid ${hasNext ? '#cfd8cc' : '#e5e7eb'}`, borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: hasNext ? 'pointer' : 'not-allowed', fontSize: '1.1rem', color: hasNext ? '#2f3a34' : '#d1d5db' }}
+      aria-label="Next card"
+    >
+      →
+    </button>
+  </div>
+)}
       <div className="card-detail-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '1rem', fontFamily: SITE_FONT }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -914,22 +1029,28 @@ export default function Home() {
   const [showMenu, setShowMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [thisWeekFilter, setThisWeekFilter] = useState('all') // 'all' | 'staff' | 'careteam'
+  const [currentUser, setCurrentUser] = useState(null)
+  const [profiles, setProfiles] = useState([])
+  const [onCallUserId, setOnCallUserId] = useState(null)
+  const [selectedCardIndex, setSelectedCardIndex] = useState(0)
 
 useEffect(() => {
   supabase.auth.getSession().then(async ({ data: { session } }) => {
     if (!session) {
       router.push('/login')
-    } else {
-      setSession(session)
+      return
+    }
+    setSession(session)
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', session.user.id)
-        .single()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, full_name, role, is_admin')
+      .eq('id', session.user.id)
+      .single()
 
-      if (profile?.is_admin) setIsAdmin(true)
+    if (profile) {
+      setCurrentUser(profile)
+      if (profile.is_admin) setIsAdmin(true)
     }
   })
 }, [])
@@ -962,7 +1083,28 @@ useEffect(() => {
     }
   }, [])
 
-  useEffect(() => { loadCards() }, [loadCards])
+  const loadProfiles = useCallback(async () => {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .order('full_name')
+  if (data) setProfiles(data)
+}, [])
+
+const loadOnCall = useCallback(async () => {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'on_call_user_id')
+    .single()
+  if (data?.value) setOnCallUserId(data.value)
+}, [])
+
+  useEffect(() => {
+  loadProfiles()
+  loadOnCall()
+  loadCards()
+}, [loadProfiles, loadOnCall, loadCards])
 
   useEffect(() => {
   const handleClickOutside = (e) => {
@@ -987,47 +1129,76 @@ return () => document.removeEventListener('mouseup', handleClickOutside)
   const activeCards = useMemo(() => cards.filter((c) => c.status !== 'completed'), [cards])
   const completedCards = useMemo(() => cards.filter((c) => c.status === 'completed'), [cards])
 
+const resolvedAssignedTo = useCallback((card) => {
+  if (card.assigned_to === 'on_call') return onCallUserId
+  return card.assigned_to
+}, [onCallUserId])
 
 const visibleCards = useMemo(() => {
-  let cards
-    if (activeTab === 'thisweek') {
-    cards = activeCards.filter(c => c.care_type !== 'prayer' && isDueThisWeek(c))
-    if (thisWeekFilter === 'staff') cards = cards.filter(c => c.assigned_groups?.includes('Staff'))
-    else if (thisWeekFilter === 'careteam') cards = cards.filter(c => c.assigned_groups?.includes('Care Team'))
+  let result
+
+  if (activeTab === 'me') {
+    result = activeCards.filter((c) => resolvedAssignedTo(c) === currentUser?.id)
+  } else if (activeTab === 'staff') {
+    const staffIds = profiles.filter((p) => p.role === 'staff').map((p) => p.id)
+    result = activeCards.filter((c) => staffIds.includes(resolvedAssignedTo(c)))
+  } else if (activeTab === 'careteam') {
+    const careIds = profiles.filter((p) => p.role === 'care_team').map((p) => p.id)
+    result = activeCards.filter((c) => careIds.includes(resolvedAssignedTo(c)))
+  } else if (activeTab === 'completed') {
+    result = completedCards
+  } else {
+    result = categoryFilter === 'all'
+      ? activeCards
+      : activeCards.filter((c) => c.care_type === categoryFilter)
   }
-  else if (activeTab === 'completed') cards = completedCards
-  else if (categoryFilter === 'all') cards = activeCards
-  else cards = activeCards.filter((c) => c.care_type === categoryFilter)
 
-cards = [...cards].sort((a, b) => {
-  const getDueDate = (card) => {
-    if (!card.last_interaction_at) return new Date(0)
-
-    const last = new Date(card.last_interaction_at)
-
-    if (card.follow_up_interval === 'daily') {
-      last.setDate(last.getDate() + 1)
-    } else if (card.follow_up_interval === 'weekly') {
-      last.setDate(last.getDate() + 7)
-    } else if (card.follow_up_interval === 'monthly') {
-      last.setDate(last.getDate() + 30)
+  result = [...result].sort((a, b) => {
+    const getDueDate = (card) => {
+      if (!card.last_interaction_at) return new Date(0)
+      const last = new Date(card.last_interaction_at)
+      if (card.follow_up_interval === 'daily') last.setDate(last.getDate() + 1)
+      else if (card.follow_up_interval === 'weekly') last.setDate(last.getDate() + 7)
+      else if (card.follow_up_interval === 'monthly') last.setDate(last.getDate() + 30)
+      return last
     }
+    return getDueDate(a) - getDueDate(b)
+  })
 
-    return last
-  }
-
-  return getDueDate(a) - getDueDate(b)
-})
-
-  if (!searchQuery.trim()) return cards
+  if (!searchQuery.trim()) return result
   const q = searchQuery.toLowerCase()
-  return cards.filter(card =>
-    card.title?.toLowerCase().includes(q) ||
-    card.name?.toLowerCase().includes(q)
+  return result.filter((c) =>
+    c.name?.toLowerCase().includes(q) ||
+    c.care_title?.toLowerCase().includes(q)
   )
-}, [activeCards, completedCards, activeTab, categoryFilter, searchQuery, thisWeekFilter])
+}, [activeCards, completedCards, activeTab, categoryFilter, searchQuery, currentUser, profiles, resolvedAssignedTo])
+  
+const meCount = useMemo(() =>
+  activeCards.filter((c) => resolvedAssignedTo(c) === currentUser?.id).length,
+  [activeCards, currentUser, resolvedAssignedTo]
+)
 
-  const saveCard = async (form) => {
+const staffIds = useMemo(() =>
+  profiles.filter((p) => p.role === 'staff').map((p) => p.id),
+  [profiles]
+)
+
+const careIds = useMemo(() =>
+  profiles.filter((p) => p.role === 'care_team').map((p) => p.id),
+  [profiles]
+)
+
+const staffCount = useMemo(() =>
+  activeCards.filter((c) => staffIds.includes(resolvedAssignedTo(c))).length,
+  [activeCards, staffIds, resolvedAssignedTo]
+)
+
+const careCount = useMemo(() =>
+  activeCards.filter((c) => careIds.includes(resolvedAssignedTo(c))).length,
+  [activeCards, careIds, resolvedAssignedTo]
+)
+
+const saveCard = async (form) => {
     try {
       if (editingCard?.id) {
         const { error } = await supabase.from('care_cards').update({ ...form, updated_at: new Date().toISOString() }).eq('id', editingCard.id)
@@ -1043,6 +1214,20 @@ cards = [...cards].sort((a, b) => {
       throw new Error(error.message)
     }
   }
+
+const openCard = (card) => {
+  const idx = visibleCards.findIndex((c) => c.id === card.id)
+  setSelectedCard(card)
+  setSelectedCardIndex(idx >= 0 ? idx : 0)
+}
+
+const navigateCard = (newIndex) => {
+  const card = visibleCards[newIndex]
+  if (card) {
+    setSelectedCard(card)
+    setSelectedCardIndex(newIndex)
+  }
+}
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -1145,213 +1330,156 @@ cards = [...cards].sort((a, b) => {
         select option { font-weight: inherit !important; }
       `}</style>
 
-      <header style={{ padding: '1.5rem 1rem 1rem', position: 'relative', zIndex: 100 }}>
-        <div className="header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap', background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem', backdropFilter: 'blur(12px)', boxShadow: 'none' }}>
-          <div className="header-title-block" style={{ flex: 1, display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h1 className="burden-title" style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', fontFamily: SITE_FONT, flex: 1, whiteSpace: 'nowrap' }}>BurdenBear</h1>
-          </div>
-          
-  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-    {/* New Card Button */}
-    <button
-      type="button"
-      onClick={() => { setEditingCard(null); setShowAddCard(true) }}
-      title="New Care Card"
-      style={{
-        background: '#6f8f73',
-        border: 'none',
-        borderRadius: '1rem',
-        padding: '1rem',
-        cursor: 'pointer',
-        fontSize: '1.5rem',
-        fontWeight: '300',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '48px',
-        height: '48px',
-        color: 'white',
-        lineHeight: 1,
-      }}
-    >
-      +
-    </button>
-
-    {/* Hamburger Menu */}
-    <button
-      type="button"
-      onClick={() => setShowMenu((prev) => !prev)}
-      style={{
-        background: 'white',
-        border: '1px solid #cfd8cc',
-        borderRadius: '1rem',
-        padding: '1rem',
-        cursor: 'pointer',
-        fontSize: '1.2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '48px',
-        height: '48px',
-      }}
-    >
-      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-      <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }}></span>
-    </button>
-  </div>
-
-{showMenu && (
-  <div
-    data-menu
-    style={{
-      position: 'absolute',
-      top: '5rem',
-      right: '1rem',
-      background: 'white',
-      border: '1px solid #d9e2d6',
-      borderRadius: '1rem',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-      minWidth: '180px',
-      overflow: 'hidden',
-      zIndex: 200,
-    }}
-  >
-    <button
-      type="button"
-      onClick={() => {
-        setShowMenu(false)
-        router.push('/how-to')
-      }}
-      style={{
-        width: '100%',
-        padding: '1rem 1.25rem',
-        background: 'none',
-        border: 'none',
-        borderBottom: '1px solid #e5ede6',
-        textAlign: 'left',
-        cursor: 'pointer',
-        fontFamily: SITE_FONT,
-        fontSize: '0.95rem',
-        color: '#2f3a34',
-        fontWeight: '600',
-      }}
-    >
-      How-To Guide
-    </button>
-
-    {isAdmin && (
-      <button
-        type="button"
-        onClick={() => {
-          setShowMenu(false)
-          router.push('/admin')
-        }}
-        style={{
-          width: '100%',
-          padding: '1rem 1.25rem',
-          background: 'none',
-          border: 'none',
-          borderBottom: '1px solid #e5ede6',
-          textAlign: 'left',
-          cursor: 'pointer',
-          fontFamily: SITE_FONT,
-          fontSize: '0.95rem',
-          color: '#2f3a34',
-          fontWeight: '600',
-        }}
-      >
-        Admin Panel
-      </button>
-    )}
-
-    <button
-      type="button"
-      onClick={() => {
-        setShowMenu(false)
-        handleSignOut()
-      }}
-      style={{
-        width: '100%',
-        padding: '1rem 1.25rem',
-        background: 'none',
-        border: 'none',
-        textAlign: 'left',
-        cursor: 'pointer',
-        fontFamily: SITE_FONT,
-        fontSize: '0.95rem',
-        color: '#dc2626',
-        fontWeight: '600',
-      }}
-    >
-      Sign Out
-    </button>
-  </div>
-)}
-
+    <header style={{ padding: '1.5rem 1rem 1rem', position: 'relative', zIndex: 100 }}>
+      <div className="header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap', background: 'rgba(255,255,255,0.85)', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem', backdropFilter: 'blur(12px)', boxShadow: 'none' }}>
+        
+        {/* Title — left side */}
+        <div className="header-title-block" style={{ flex: 1 }}>
+          <h1 className="burden-title" style={{ margin: 0, fontSize: '1.75rem', fontWeight: '800', fontFamily: SITE_FONT, whiteSpace: 'nowrap' }}>BurdenBear</h1>
         </div>
-      </header>
+
+        {/* Right side: On Call pill + buttons */}
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {onCallUserId && profiles.find((p) => p.id === onCallUserId) && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              borderRadius: '999px',
+              padding: '0.35rem 0.9rem',
+              fontSize: '0.92rem',
+              fontFamily: SITE_FONT,
+              color: '#6b7280',
+              whiteSpace: 'nowrap',
+            }}>
+              📞 On Call:&nbsp;<strong style={{ color: '#c2410c' }}>{profiles.find((p) => p.id === onCallUserId).full_name}</strong>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => { setEditingCard(null); setShowAddCard(true) }}
+            title="New Care Card"
+            style={{ background: '#6f8f73', border: 'none', borderRadius: '1rem', cursor: 'pointer', fontSize: '1.5rem', fontWeight: '300', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', color: 'white', lineHeight: 1 }}
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowMenu((prev) => !prev)}
+            style={{ background: 'white', border: '1px solid #cfd8cc', borderRadius: '1rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px' }}
+          >
+            <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }} />
+            <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }} />
+            <span style={{ display: 'block', width: '18px', height: '2px', background: '#2f3a34' }} />
+          </button>
+        </div>
+
+        {/* Dropdown menu */}
+        {showMenu && (
+          <div
+            data-menu
+            style={{ position: 'absolute', top: '5rem', right: '1rem', background: 'white', border: '1px solid #d9e2d6', borderRadius: '1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minWidth: '180px', overflow: 'hidden', zIndex: 200 }}
+          >
+            <button type="button" onClick={() => { setShowMenu(false); router.push('/how-to') }}
+              style={{ width: '100%', padding: '1rem 1.25rem', background: 'none', border: 'none', borderBottom: '1px solid #e5ede6', textAlign: 'left', cursor: 'pointer', fontFamily: SITE_FONT, fontSize: '0.95rem', color: '#2f3a34', fontWeight: '600' }}>
+              How-To Guide
+            </button>
+            {isAdmin && (
+              <button type="button" onClick={() => { setShowMenu(false); router.push('/admin') }}
+                style={{ width: '100%', padding: '1rem 1.25rem', background: 'none', border: 'none', borderBottom: '1px solid #e5ede6', textAlign: 'left', cursor: 'pointer', fontFamily: SITE_FONT, fontSize: '0.95rem', color: '#2f3a34', fontWeight: '600' }}>
+                Admin Panel
+              </button>
+            )}
+            <button type="button" onClick={() => { setShowMenu(false); handleSignOut() }}
+              style={{ width: '100%', padding: '1rem 1.25rem', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontFamily: SITE_FONT, fontSize: '0.95rem', color: '#dc2626', fontWeight: '600' }}>
+              Sign Out
+            </button>
+          </div>
+        )}
+
+      </div>
+    </header>
+
 
 <div className="tabs-container" style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-  
-  {/* Search bar - shows above on mobile via CSS, inline on desktop */}
   <input
     className="search-input"
     type="text"
     placeholder="Search by name or title..."
     value={searchQuery}
     onChange={(e) => setSearchQuery(e.target.value)}
-    style={{
-      padding: '0.6rem 1rem',
-      borderRadius: '2rem',
-      border: '1px solid #d9e2d6',
-      background: 'white',
-      fontSize: '0.95rem',
-      fontFamily: SITE_FONT,
-      color: '#2f3a34',
-      outline: 'none',
-      minWidth: '200px',
-      flex: 1,
-    }}
+    style={{ padding: '0.6rem 1rem', borderRadius: '2rem', border: '1px solid #d9e2d6', background: 'white', fontSize: '0.95rem', fontFamily: SITE_FONT, color: '#2f3a34', outline: 'none', minWidth: '200px', flex: 1 }}
   />
 
-  <div className="tab-btn" style={{ position: 'relative', display: 'flex', alignItems: 'center', padding: 0 }}>
-    <select
-      style={dropdownStyle}
-      value={activeTab === 'completed' ? '__completed__' : activeTab === 'browse' ? categoryFilter : '__browse__'}
-      onChange={(e) => {
-        if (e.target.value === '__completed__') {
-          setActiveTab('completed')
-          setCategoryFilter('all')
-        } else {
-          setActiveTab('browse')
-          setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
-        }
-      }}
-      onFocus={() => {}}
-    >
-      <option value="all">All Cards ({activeCards.length})</option>
-      {CARE_TYPES.map((type) => (
-        <option key={type.value} value={type.value}>
-          {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
-        </option>
-      ))}
-      <option value="__completed__">Completed ({completedCards.length})</option>
-    </select>
-    <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem', lineHeight: 1 }}>▾</span>
-  </div>
-
-
-<div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-    <button
-      className="tab-btn"
-      onClick={() => { setActiveTab('thisweek'); setThisWeekFilter('all') }}
-      style={tabButtonStyle(activeTab === 'thisweek')}
-    >
-      This Week ({activeCards.filter(isDueThisWeek).length})
+  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+    <button onClick={() => setActiveTab(activeTab === 'me' ? 'browse' : 'me')} style={tabButtonStyle(activeTab === 'me')}>
+  Me ({meCount})
     </button>
+
+    <button
+      onClick={() => setActiveTab(activeTab === 'staff' ? 'browse' : 'staff')}
+      style={{
+        ...tabButtonStyle(activeTab === 'staff'),
+        ...(activeTab === 'staff'
+          ? { background: '#7c3aed', borderColor: '#7c3aed' }
+          : { color: '#7c3aed', borderColor: '#7c3aed' }),
+      }}
+    >
+      Staff ({staffCount})
+    </button>
+
+    <button
+      onClick={() => setActiveTab(activeTab === 'careteam' ? 'browse' : 'careteam')}
+      style={{
+        ...tabButtonStyle(activeTab === 'careteam'),
+        ...(activeTab === 'careteam'
+          ? { background: '#2563eb', borderColor: '#2563eb' }
+          : { color: '#2563eb', borderColor: '#2563eb' }),
+      }}
+    >
+      Care Team ({careCount})
+    </button>
+
+    <button
+      onClick={() => setActiveTab('careteam')}
+      style={{
+        ...tabButtonStyle(activeTab === 'careteam'),
+        ...(activeTab === 'careteam'
+          ? { background: '#2563eb', borderColor: '#2563eb' }
+          : { color: '#2563eb', borderColor: '#2563eb' }),
+      }}
+    >
+      Care Team ({careCount})
+    </button>
+
+    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+      <select
+        style={dropdownStyle}
+        value={activeTab === 'completed' ? '__completed__' : activeTab === 'browse' ? categoryFilter : '__browse__'}
+        onChange={(e) => {
+          if (e.target.value === '__completed__') {
+            setActiveTab('completed')
+            setCategoryFilter('all')
+          } else {
+            setActiveTab('browse')
+            setCategoryFilter(e.target.value === '__browse__' ? 'all' : e.target.value)
+          }
+        }}
+      >
+        <option value="all">All Cards ({activeCards.length})</option>
+        {CARE_TYPES.map((type) => (
+          <option key={type.value} value={type.value}>
+            {type.label} ({activeCards.filter((c) => c.care_type === type.value).length})
+          </option>
+        ))}
+        <option value="__completed__">Completed ({completedCards.length})</option>
+      </select>
+      <span style={{ position: 'absolute', right: '0.9rem', pointerEvents: 'none', color: activeTab === 'browse' ? 'white' : '#6f8f73', fontSize: '0.8rem' }}>▾</span>
+    </div>
   </div>
 </div>
 
@@ -1416,9 +1544,8 @@ cards = [...cards].sort((a, b) => {
               <CareCard
                 key={card.id}
                 card={card}
-                onClick={() => setSelectedCard(card)}
-                onComplete={handleComplete}
-                showYellowSoon={activeTab === 'followup'}
+                onClick={() => openCard(card)}
+                profiles={profiles}
               />
             ))}
           </div>
@@ -1427,15 +1554,26 @@ cards = [...cards].sort((a, b) => {
 
       {showAddCard && (
         <Modal onClose={() => { setShowAddCard(false); setEditingCard(null) }}>
-          <CardForm initial={editingCard} onSave={saveCard} onClose={() => { setShowAddCard(false); setEditingCard(null) }} />
+          <CardForm
+            initial={editingCard}
+            onSave={saveCard}
+            onClose={() => { setShowAddCard(false); setEditingCard(null) }}
+            profiles={profiles}
+            onCallUserId={onCallUserId}
+          />
         </Modal>
       )}
+
       {selectedCard && (
         <CardDetail
           card={selectedCard}
           onClose={() => setSelectedCard(null)}
           refreshCards={loadCards}
           onEdit={(card) => { setSelectedCard(null); setEditingCard(card); setShowAddCard(true) }}
+          profiles={profiles}
+          allVisibleCards={visibleCards}
+          currentIndex={selectedCardIndex}
+          onNavigate={navigateCard}
         />
       )}
       

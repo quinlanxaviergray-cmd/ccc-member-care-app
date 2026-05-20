@@ -2,167 +2,154 @@
 
 import { useRouter } from 'next/navigation'
 
-const SITE_FONT = "'Avenir Next', Avenir, Helvetica, Arial, sans-serif"
+const SITE_FONT = 'Avenir Next, Avenir, Helvetica, Arial, sans-serif'
+
+const sections = [
+  {
+    emoji: '📋',
+    title: 'The Monday Morning Workflow',
+    content: `BurdenBear is built around your Monday rhythm. Here is how to use it:
+
+1. Open the app before your Member Care Team meeting.
+2. Review all cards — check the Staff and Care Team tabs to make sure everything is up to date and assigned.
+3. Any new cards from Sunday that are unassigned? Assign them now.
+4. Go to the Admin Panel (hamburger menu, then Admin Panel) and select the On-Call Pastor for the week.
+5. Walk into staff meeting. Review the On-Call pastor's cards. Ask if any staff want to take one or two based on personal relationship.
+6. Reassign those cards to the staff member who volunteers.
+
+Everyone opens the app, sees their Me tab, and knows exactly who they are responsible for.`,
+  },
+  {
+    emoji: '🗂️',
+    title: 'The Three Tabs',
+    content: `The app has three primary tabs:
+
+Me — Shows every card assigned specifically to you. This is your personal list. Open the app here first.
+
+Staff — Shows all cards assigned to anyone with a Staff role (pastors, paid staff). Everyone can see this.
+
+Care Team — Shows all cards assigned to anyone with a Care Team role (volunteer caregivers).
+
+You can also use the dropdown to browse All Cards, filter by care type, or view Completed cards.`,
+  },
+  {
+    emoji: '👤',
+    title: 'Assigning a Care Card',
+    content: `When creating or editing a card, use the Assigned To dropdown to choose a person. The list pulls from everyone in the app.
+
+Assigning someone does two things:
+1. The card shows up on that person's Me tab — they know it is theirs.
+2. It shows up on the Staff or Care Team tab based on their role.
+
+You can also assign a card to On Call. That card will automatically route to whoever the Admin has set as on-call for the week. When the on-call pastor changes, all On Call cards shift to the new person automatically.
+
+Leaving a card unassigned means it will not appear on anyone's Me tab — a good signal it needs attention during your Monday review.`,
+  },
+  {
+    emoji: '📞',
+    title: 'Setting the On-Call Pastor',
+    content: `Each week, an Admin selects the On-Call Pastor from the Admin Panel.
+
+To do this:
+1. Open the hamburger menu (top right), then tap Admin Panel.
+2. Under On-Call Pastor This Week, select a person from the dropdown.
+3. Click Set On Call.
+
+The selected person's name will appear at the top of the app so everyone knows who is on call. Any cards assigned to On Call will appear on that person's Me tab for the week.`,
+  },
+  {
+    emoji: '✍️',
+    title: 'Logging an Interaction',
+    content: `Click any care card, then scroll to Add Interaction at the bottom.
+
+Fill in:
+- Type (Visit, Phone Call, Text, Email, Update, Other)
+- Date and time of the interaction
+- Notes about how it went
+- Next Interaction Needed By — pick the date you want to follow up by
+
+That last field is the important one. When you set it, the app automatically calculates and saves the follow-up schedule in the background. Just pick the next date that makes sense for this person.
+
+The card will update to show when the next interaction is due and will turn red if it becomes overdue.`,
+  },
+  {
+    emoji: '✅',
+    title: 'Completing a Card',
+    content: `When someone's care need has resolved — they have recovered, grief has stabilized, or the situation is closed — mark the card complete.
+
+Open the card and click Mark Complete. It moves to the Completed tab and is removed from active views. You can always reactivate it if circumstances change.`,
+  },
+  {
+    emoji: '🔴',
+    title: 'Understanding Overdue Cards',
+    content: `A card turns red when the next interaction date has passed and no interaction has been logged.
+
+If a card is overdue on your Me tab, that person needs to hear from you. Log an interaction as soon as you reach out — even a quick text counts. Set the next date when you log it.
+
+On Our Radar cards (the prayer category) do not have due dates and will not turn red. They are passive-watch items.`,
+  },
+  {
+    emoji: '🧭',
+    title: 'Navigating Between Cards',
+    content: `When a card is open, you will see arrow buttons at the top of the detail view. Use these to move through the current list of cards without closing and reopening the modal.
+
+You can also use your keyboard: left and right arrow keys navigate between cards, and Escape closes the detail view.
+
+This is especially useful during your Monday morning review — open the first card and arrow through them one by one.`,
+  },
+  {
+    emoji: '⚙️',
+    title: 'Admin: Managing Roles',
+    content: `In the Admin Panel, you can set each person's role: Staff or Care Team.
+
+Staff = Pastors and paid staff. Their assigned cards appear under the Staff tab.
+Care Team = Volunteer caregivers. Their assigned cards appear under the Care Team tab.
+
+You can also grant or remove Admin access from this panel. Admins can set roles and select the on-call person. Everyone else can see and interact with all cards.`,
+  },
+]
 
 export default function HowTo() {
   const router = useRouter()
 
-  const sectionStyle = {
-    background: 'rgba(255,255,255,0.85)',
-    border: '1px solid #d9e2d6',
-    borderRadius: '1.25rem',
-    padding: '1.5rem',
-    backdropFilter: 'blur(12px)',
-    marginBottom: '1rem',
-    fontFamily: SITE_FONT,
-  }
-
-  const headingStyle = {
-    margin: '0 0 0.75rem',
-    fontSize: '1.1rem',
-    fontWeight: '700',
-    color: '#2f3a34',
-    fontFamily: SITE_FONT,
-  }
-
-  const subheadingStyle = {
-    margin: '1rem 0 0.4rem',
-    fontSize: '0.95rem',
-    fontWeight: '700',
-    color: '#4f6b57',
-    fontFamily: SITE_FONT,
-  }
-
-  const textStyle = {
-    fontSize: '0.95rem',
-    color: '#374151',
-    lineHeight: '1.7',
-    fontFamily: SITE_FONT,
-    margin: '0 0 0.5rem',
-  }
-
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 45%, #f9fbf7 100%)', fontFamily: SITE_FONT, padding: '1.5rem 1rem' }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 100%)', fontFamily: SITE_FONT, padding: '1.5rem 1rem 4rem' }}>
+      <div style={{ maxWidth: '680px', margin: '0 auto' }}>
 
-        {/* Header */}
-        <div style={{ ...sectionStyle, textAlign: 'center', marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '800', fontFamily: SITE_FONT }}>BurdenBear</h1>
-          <div style={{ color: '#5f6b63', marginTop: '0.25rem', fontSize: '0.95rem', fontFamily: SITE_FONT }}>How-To Guide</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+          <button
+            onClick={() => router.push('/')}
+            style={{ background: 'white', border: '1px solid #cfd8cc', borderRadius: '0.75rem', padding: '0.6rem 1rem', cursor: 'pointer', fontFamily: SITE_FONT, fontWeight: '600', color: '#4f6b57', fontSize: '0.9rem' }}
+          >
+            Back
+          </button>
+          <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800', fontFamily: SITE_FONT }}>How to Use BurdenBear</h1>
         </div>
 
-        <button
-          onClick={() => router.push('/')}
-          style={{ padding: '0.5rem 1rem', background: '#6f8f73', color: 'white', border: 'none', borderRadius: '0.5rem', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', fontFamily: SITE_FONT, marginBottom: '1.5rem' }}
-        >
-          ← Back to Dashboard
-        </button>
+        <p style={{ color: '#5f6b63', fontSize: '1rem', lineHeight: '1.6', marginBottom: '2rem', fontFamily: SITE_FONT }}>
+          BurdenBear helps your church care for people well — not just track them. The goal is that every person with a care need has someone who knows they are responsible for them.
+        </p>
 
-        {/* Overview */}
-        <div style={sectionStyle}>
-          <h2 style={headingStyle}>What is BurdenBear?</h2>
-          <p style={textStyle}>
-            BurdenBear is a Member Care tracking tool designed to help your team stay on top of pastoral care. It allows you to create Care Cards for individuals who need regular follow-up, log interactions, and make sure no one falls through the cracks.
-          </p>
+        <div style={{ display: 'grid', gap: '1.25rem' }}>
+          {sections.map((section) => (
+            <div
+              key={section.title}
+              style={{ background: 'white', border: '1px solid #d9e2d6', borderRadius: '1.25rem', padding: '1.5rem' }}
+            >
+              <h2 style={{ margin: '0 0 1rem', fontSize: '1.15rem', fontWeight: '800', fontFamily: SITE_FONT }}>
+                {section.emoji} {section.title}
+              </h2>
+              <div style={{ color: '#374151', fontSize: '0.95rem', lineHeight: '1.75', fontFamily: SITE_FONT, whiteSpace: 'pre-line' }}>
+                {section.content}
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Care Cards */}
-        <div style={sectionStyle}>
-          <h2 style={headingStyle}>Care Cards</h2>
-          <p style={textStyle}>
-            A Care Card represents a person in your congregation who needs ongoing care and follow-up. Each card tracks who they are, what kind of care they need, how often they should be contacted, and a history of every interaction your team has had with them.
+        <div style={{ marginTop: '2rem', background: '#eef4ee', border: '1px solid #a8c4ab', borderRadius: '1.25rem', padding: '1.5rem', textAlign: 'center' }}>
+          <p style={{ margin: 0, color: '#4f6b57', fontWeight: '600', fontSize: '0.95rem', fontFamily: SITE_FONT }}>
+            "Bear one another's burdens, and so fulfill the law of Christ." — Galatians 6:2
           </p>
-
-          <p style={subheadingStyle}>Creating a Care Card</p>
-          <p style={textStyle}>
-            Tap the green <strong>+</strong> button in the bottom right corner of the dashboard to create a new Care Card. You'll be asked to fill in the person's name, phone number, location, care type, follow-up frequency, and any relevant notes.
-          </p>
-
-          <p style={subheadingStyle}>Care Types</p>
-          <p style={textStyle}>Choose the category that best describes the person's situation:</p>
-          <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li><strong>Short-Term Medical</strong> — Someone recovering from a surgery, illness, or temporary medical situation.</li>
-            <li><strong>Long-Term Medical</strong> — Someone managing a chronic illness or ongoing medical condition.</li>
-            <li><strong>Grief</strong> — Someone who has experienced a loss and needs ongoing emotional and spiritual support.</li>
-            <li><strong>Pregnancy</strong> — Someone who is expecting or has recently had a baby and could use extra care and encouragement.</li>
-            <li><strong>Homebound</strong> — Someone who is unable to leave their home and needs regular in-person or phone support.</li>
-            <li><strong>On Our Radar</strong> — Someone your team wants to keep an eye on who doesn't yet need active follow-up. These cards do not appear in the This Week tab.</li>
-            <li><strong>Other</strong> — Any situation that doesn't fit neatly into the categories above.</li>
-          </ul>
-
-          <p style={subheadingStyle}>Follow-Up Frequency</p>
-          <p style={textStyle}>Set how often this person should be contacted:</p>
-          <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li><strong>Daily</strong> — This person needs to be contacted every day. They will appear on the Today tab each morning.</li>
-            <li><strong>Weekly</strong> — This person needs to be contacted once a week. They will appear on the This Week tab as their due date approaches.</li>
-            <li><strong>Monthly</strong> — This person needs to be contacted once a month.</li>
-          </ul>
-
-          <p style={subheadingStyle}>Editing a Care Card</p>
-          <p style={textStyle}>
-            Open any Care Card by tapping on it, then tap the <strong>Edit</strong> button to update any of the card's details.
-          </p>
-
-          <p style={subheadingStyle}>Completing a Care Card</p>
-          <p style={textStyle}>
-            When someone no longer needs active care, open their card and tap <strong>Click to Complete</strong>. The card will move to the Completed tab. If a card is completed by mistake, open it and tap <strong>Make Active</strong> to restore it.
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div style={sectionStyle}>
-          <h2 style={headingStyle}>Dashboard Tabs</h2>
-
-          <p style={subheadingStyle}>All Cards</p>
-          <p style={textStyle}>
-            The default view. Browse all active Care Cards and use the dropdown to filter by care type — Grief, Short-Term Medical, Long-Term Medical, Pregnancy, Homebound, Prayer, or Other.
-          </p>
-
-          <p style={subheadingStyle}>This Week</p>
-          <p style={textStyle}>
-            Shows every Care Card whose next interaction is due between Monday at 12:01 AM and the following Monday at 12:00 AM. This tab resets automatically each Monday morning, making it the best place to start your week and plan who needs to be contacted. Prayer cards are excluded from this tab and should be managed separately.
-          </p>
-          <p style={textStyle}>
-            When viewing This Week, use the <strong>Staff</strong> and <strong>Care Team</strong> filter buttons that appear below the tabs to narrow the list by who the card is assigned to. These filters are toggles — tap one to activate it, tap again to show all.
-          </p>
-
-          <p style={subheadingStyle}>Completed</p>
-          <p style={textStyle}>
-            A record of all Care Cards that have been marked as complete. These cards are no longer active but remain in the system for reference. You can reactivate a completed card at any time by opening it and tapping <strong>Make Active</strong>.
-          </p>
-        </div>
-
-        {/* Logging Interactions */}
-        <div style={sectionStyle}>
-          <h2 style={headingStyle}>Logging Interactions</h2>
-          <p style={textStyle}>
-            Every time someone on your team contacts a person, that interaction should be logged. Open the Care Card and scroll to the bottom to find the interaction form. Choose the type of interaction and add any notes about how the conversation went.
-          </p>
-
-          <p style={subheadingStyle}>Interaction Types</p>
-          <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li><strong>Phone Call</strong> — A phone or video call with the person.</li>
-            <li><strong>Visit</strong> — An in-person visit at their home, hospital, or elsewhere.</li>
-            <li><strong>Text</strong> — A text message exchange.</li>
-            <li><strong>Email</strong> — An email sent to the person.</li>
-          </ul>
-
-          <p style={textStyle}>
-            Logging an interaction resets the follow-up timer for that card, so the Next Interaction Needed By date will update automatically based on the card's frequency.
-          </p>
-        </div>
-
-        {/* Tips */}
-        <div style={sectionStyle}>
-          <h2 style={headingStyle}>Tips for Your Team</h2>
-          <ul style={{ ...textStyle, paddingLeft: '1.25rem' }}>
-            <li>Check the <strong>This Week</strong> tab every Monday morning to plan your week of care visits and calls.</li>
-            <li>Use the <strong>Staff</strong> and <strong>Care Team</strong> filter buttons on the This Week tab to divide up responsibilities for the week.</li>
-            <li>Always log an interaction immediately after contacting someone so the rest of the team knows it's been done.</li>
-            <li>Use the Notes field on Care Cards to record important context — like family situations, prayer requests, or specific needs.</li>
-            <li>On Our Radar cards won't appear in This Week — check All Cards and filter by On Our Radar to keep tabs on people who may need more active care soon.</li>
-            <li>If you're unsure which care type to use, choose the one that best describes the primary reason the person needs care right now.</li>
-          </ul>
         </div>
 
       </div>
