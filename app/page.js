@@ -199,26 +199,22 @@ const [form, setForm] = useState(
     setError('')
   }, [])
 
-  const handleSubmit = async (e) => {
-    e?.preventDefault()
-    if (!form.name.trim() || !form.care_title.trim()) {
-      setError('Name and Care Title are required.')
-      return
-    }
-    setSaving(true)
-    setError('')
-    try {
-      const resolved = { ...form }
-      if (resolved.assigned_to === 'on_call') {
-        resolved.assigned_to = onCallUserId || 'on_call'
-      }
-      await onSave(resolved)
-    } catch (err) {
-      setError(err.message || 'Failed to save card')
-    } finally {
-      setSaving(false)
-    }
+const handleSubmit = async (e) => {
+  e?.preventDefault()
+  if (!form.name.trim() || !form.care_title.trim()) {
+    setError('Name and Care Title are required.')
+    return
   }
+  setSaving(true)
+  setError('')
+  try {
+    await onSave(form)  // ← remove the resolved logic entirely, save form directly
+  } catch (err) {
+    setError(err.message || 'Failed to save card')
+  } finally {
+    setSaving(false)
+  }
+}
 
   const inputStyle = {
     width: '100%',
@@ -789,7 +785,7 @@ function getNextInteractionDate(card) {
   return nextDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
-function CardDetail({ card, onClose, refreshCards, onEdit, profiles = [], allVisibleCards = [], currentIndex = 0, onNavigate }) {
+function CardDetail({ card, onClose, refreshCards, onEdit, profiles = [], onCallUserId = null, allVisibleCards = [], currentIndex = 0, onNavigate }) {
   const [interactions, setInteractions] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -798,6 +794,8 @@ function CardDetail({ card, onClose, refreshCards, onEdit, profiles = [], allVis
   const [deletingInteractionId, setDeletingInteractionId] = useState(null)
   const isCompleted = card.status === 'completed'
   const assignedPerson = profiles.find((p) => p.id === card.assigned_to)
+  const onCallPerson = profiles.find((p) => p.id === onCallUserId)
+  const [assignedTo, setAssignedTo] = useState(card.assigned_to || '')
   const hasPrev = currentIndex > 0
   const hasNext = currentIndex < allVisibleCards.length - 1
 
@@ -960,12 +958,59 @@ useEffect(() => {
         </div>
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
+      
+
+<div style={{ marginTop: '1rem', padding: '1rem', background: '#f4f7f2', borderRadius: '0.75rem', fontFamily: SITE_FONT }}>
         <div style={{ fontSize: '1rem', color: '#5f6b63' }}> {card.phone || 'No phone number'} •  {card.location || 'No location'}</div>
         <div style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{card.notes}</div>
       </div>
 
-
+      {/* Assigned To */}
+      <div style={{ marginTop: '1rem', fontFamily: SITE_FONT }}>
+        <label style={{ fontSize: '0.88rem', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '0.4rem', fontFamily: SITE_FONT }}>
+          Assigned To
+        </label>
+        <select
+          value={assignedTo}
+          onChange={async (e) => {
+            const newVal = e.target.value
+            setAssignedTo(newVal)
+            const { error } = await supabase
+              .from('care_cards')
+              .update({ assigned_to: newVal, updated_at: new Date().toISOString() })
+              .eq('id', card.id)
+            if (error) alert(error.message)
+            else refreshCards()
+          }}
+          style={{
+            width: '100%',
+            padding: '0.85rem 2.5rem 0.85rem 1rem',
+            borderRadius: '0.8rem',
+            border: '1px solid #cfd8cc',
+            fontSize: '1rem',
+            background: 'white',
+            outline: 'none',
+            boxSizing: 'border-box',
+            fontFamily: SITE_FONT,
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236f8f73' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 1rem center',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">— Unassigned —</option>
+          <option value="on_call">
+            📞 On Call{onCallPerson ? ` (${onCallPerson.full_name})` : ''}
+          </option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.full_name} · {p.role === 'staff' ? 'Staff' : 'Care Team'}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div style={{ marginTop: '1.5rem', fontFamily: SITE_FONT }}>
         <h3 style={{ marginBottom: '0.5rem', fontFamily: SITE_FONT }}>Interaction History</h3>
@@ -1561,6 +1606,7 @@ const navigateCard = (newIndex) => {
           refreshCards={loadCards}
           onEdit={(card) => { setSelectedCard(null); setEditingCard(card); setShowAddCard(true) }}
           profiles={profiles}
+          onCallUserId={onCallUserId}  
           allVisibleCards={visibleCards}
           currentIndex={selectedCardIndex}
           onNavigate={navigateCard}
