@@ -796,6 +796,10 @@ function CardDetail({ card, onClose, refreshCards, onEdit, profiles = [], onCall
   const assignedPerson = profiles.find((p) => p.id === card.assigned_to)
   const onCallPerson = profiles.find((p) => p.id === onCallUserId)
   const [assignedTo, setAssignedTo] = useState(card.assigned_to || '')
+
+useEffect(() => {
+  setAssignedTo(card.assigned_to || '')
+}, [card.id])
   const hasPrev = currentIndex > 0
   const hasNext = currentIndex < allVisibleCards.length - 1
 
