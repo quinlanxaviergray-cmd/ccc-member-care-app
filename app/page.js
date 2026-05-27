@@ -1452,7 +1452,7 @@ const navigateCard = (newIndex) => {
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {onCallUserId && profiles.find((p) => p.id === onCallUserId) && (
             <div className="on-call-header-pill" style={{
-              display: 'flex',
+              display: 'none',
               alignItems: 'center',
               gap: '0.4rem',
               background: '#fff7ed',
