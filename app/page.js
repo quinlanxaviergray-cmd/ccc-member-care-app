@@ -288,7 +288,7 @@ const handleSubmit = async (e) => {
   >
     <option value="">— Unassigned —</option>
     <option value="on_call">
-      📞 On Call{onCallUserId && profiles.find((p) => p.id === onCallUserId)
+      On Call{onCallUserId && profiles.find((p) => p.id === onCallUserId)
         ? ` (${profiles.find((p) => p.id === onCallUserId).full_name})`
         : ''}
     </option>
@@ -323,9 +323,66 @@ const handleSubmit = async (e) => {
   )
 }
 
+function NextInteractionPicker({ value, onChange }) {
+  const today = new Date()
+  const options = [
+    {
+      label: 'Tomorrow',
+      sublabel: (() => { const d = new Date(today); d.setDate(d.getDate() + 1); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) })(),
+      getValue: () => { const d = new Date(today); d.setDate(d.getDate() + 1); return getLocalDateValue(d) },
+    },
+    {
+      label: 'In a Few Days',
+      sublabel: (() => { const d = new Date(today); d.setDate(d.getDate() + 4); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) })(),
+      getValue: () => { const d = new Date(today); d.setDate(d.getDate() + 4); return getLocalDateValue(d) },
+    },
+    {
+      label: 'Next Week',
+      sublabel: (() => { const d = new Date(today); d.setDate(d.getDate() + 7); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) })(),
+      getValue: () => { const d = new Date(today); d.setDate(d.getDate() + 7); return getLocalDateValue(d) },
+    },
+  ]
+  return (
+    <div>
+      <label style={{ display: 'block', marginBottom: '0.5rem', fontFamily: SITE_FONT }}>
+        Next Interaction Needed By
+      </label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+        {options.map((opt) => {
+          const optVal = opt.getValue()
+          const isSelected = value === optVal
+          return (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChange(optVal)}
+              style={{
+                padding: '0.75rem 0.5rem',
+                borderRadius: '0.75rem',
+                border: isSelected ? '2px solid #4f6b57' : '1px solid #cfd8cc',
+                background: isSelected ? '#eef4ee' : 'white',
+                color: isSelected ? '#2d4a34' : '#374151',
+                cursor: 'pointer',
+                fontFamily: SITE_FONT,
+                textAlign: 'center',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <div style={{ fontWeight: '700', fontSize: '0.88rem', marginBottom: '0.2rem' }}>{opt.label}</div>
+              <div style={{ fontSize: '0.75rem', color: isSelected ? '#4f6b57' : '#6b7280' }}>{opt.sublabel}</div>
+            </button>
+          )
+        })}
+      </div>
+      <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0.35rem 0 0', fontFamily: SITE_FONT }}>
+        This sets the follow-up schedule automatically.
+      </p>
+    </div>
+  )
+}
+
 function InteractionForm({ cardId, onSaved }) {
   const [saving, setSaving] = useState(false)
-  const today = getLocalDateValue()
 
   const defaultNext = (() => {
     const d = new Date()
@@ -431,22 +488,10 @@ function InteractionForm({ cardId, onSaved }) {
             required
           />
         </div>
-        <div>
-          <label htmlFor="next-interaction-date" style={{ fontFamily: SITE_FONT }}>
-            Next Interaction Needed By
-          </label>
-          <input
-            id="next-interaction-date"
-            type="date"
-            style={inputStyle}
-            value={form.next_interaction_date}
-            min={today}
-            onChange={(e) => setForm((p) => ({ ...p, next_interaction_date: e.target.value }))}
-          />
-          <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0.35rem 0 0', fontFamily: SITE_FONT }}>
-            This sets the follow-up schedule automatically.
-          </p>
-        </div>
+        <NextInteractionPicker
+          value={form.next_interaction_date}
+          onChange={(dateStr) => setForm((p) => ({ ...p, next_interaction_date: dateStr }))}
+        />
         <button
           type="submit"
           disabled={saving}
@@ -555,7 +600,7 @@ function CareCard({ card, onClick, profiles = [] }) {
     }
     if (card.assigned_to === 'on_call') {
       return {
-        label: '📞 On Call',
+        label: 'On Call',
         bg: '#fff7ed',
         color: '#c2410c',
         border: '#c2410c',
@@ -1186,8 +1231,18 @@ const resolvedAssignedTo = useCallback((card) => {
 }, [onCallUserId])
 
 const visibleCards = useMemo(() => {
-  let result
+  const q = searchQuery.trim().toLowerCase()
 
+  // When searching, scan ALL cards (active + completed)
+  if (q) {
+    return cards.filter((c) =>
+      c.name?.toLowerCase().includes(q) ||
+      c.care_title?.toLowerCase().includes(q)
+    )
+  }
+
+  // No search — normal tab/filter logic below
+  let result
   if (activeTab === 'me') {
     result = activeCards.filter((c) => resolvedAssignedTo(c) === currentUser?.id)
   } else if (activeTab === 'staff') {
@@ -1216,13 +1271,8 @@ const visibleCards = useMemo(() => {
     return getDueDate(a) - getDueDate(b)
   })
 
-  if (!searchQuery.trim()) return result
-  const q = searchQuery.toLowerCase()
-  return result.filter((c) =>
-    c.name?.toLowerCase().includes(q) ||
-    c.care_title?.toLowerCase().includes(q)
-  )
-}, [activeCards, completedCards, activeTab, categoryFilter, searchQuery, currentUser, profiles, resolvedAssignedTo])
+  return result
+}, [activeCards, completedCards, cards, activeTab, categoryFilter, searchQuery, currentUser, profiles, resolvedAssignedTo])
   
 const meCount = useMemo(() =>
   activeCards.filter((c) => resolvedAssignedTo(c) === currentUser?.id).length,
@@ -1347,6 +1397,15 @@ const navigateCard = (newIndex) => {
           .card-detail-actions { flex-wrap: wrap !important; width: 100% !important; }
           .card-detail-actions button { flex: 1 !important; min-width: 80px !important; }
           .completed-tab { display: none !important; }
+          .on-call-header-pill { display: flex; }
+          .on-call-mobile-banner { display: none; }
+          .dropdown-wrapper { width: 100% !important; }
+          .dropdown-wrapper select { width: 100% !important; box-sizing: border-box !important; }
+
+          @media (max-width: 640px) {
+            .on-call-header-pill { display: none !important; }
+            .on-call-mobile-banner { display: flex !important; align-items: center; justify-content: center; gap: 0.4rem; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 999px; padding: 0.4rem 1rem; font-size: 0.9rem; color: #6b7280; margin: 0 1rem 0.5rem; }
+          }
           .tabs-container {
   display: flex !important;
   flex-direction: column !important;
@@ -1392,7 +1451,7 @@ const navigateCard = (newIndex) => {
         {/* Right side: On Call pill + buttons */}
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {onCallUserId && profiles.find((p) => p.id === onCallUserId) && (
-            <div style={{
+            <div className="on-call-header-pill" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
@@ -1455,6 +1514,11 @@ const navigateCard = (newIndex) => {
       </div>
     </header>
 
+{onCallUserId && profiles.find((p) => p.id === onCallUserId) && (
+  <div className="on-call-mobile-banner">
+    On Call:&nbsp;<strong style={{ color: '#c2410c' }}>{profiles.find((p) => p.id === onCallUserId).full_name}</strong>
+  </div>
+)}
 
 <div className="tabs-container" style={{ padding: '0 1rem 1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
   <input
@@ -1492,10 +1556,10 @@ const navigateCard = (newIndex) => {
           : { color: '#2563eb', borderColor: '#2563eb' }),
       }}
     >
-      Care Team ({careCount})
+      Team ({careCount})
     </button>
 
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+    <div className="dropdown-wrapper" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
       <select
         style={dropdownStyle}
         value={activeTab === 'completed' ? '__completed__' : activeTab === 'browse' ? categoryFilter : '__browse__'}
