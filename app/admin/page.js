@@ -6,6 +6,82 @@ import { useRouter } from 'next/navigation'
 
 const SITE_FONT = 'Avenir Next, Avenir, Helvetica, Arial, sans-serif'
 
+  function PendingApprovals() {
+  const [pending, setPending] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [actioning, setActioning] = useState(null)
+
+  const loadPending = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role, created_at')
+      .eq('approved', false)
+      .order('created_at', { ascending: true })
+    if (!error && data) setPending(data)
+    setLoading(false)
+  }
+
+  useEffect(() => { loadPending() }, [])
+
+  const approve = async (userId) => {
+    setActioning(userId)
+    const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', userId)
+    if (error) alert(error.message)
+    else await loadPending()
+    setActioning(null)
+  }
+
+  const deny = async (userId) => {
+    if (!confirm('Deny this user? This will delete their profile.')) return
+    setActioning(userId)
+    const { error } = await supabase.from('profiles').delete().eq('id', userId)
+    if (error) alert(error.message)
+    else await loadPending()
+    setActioning(null)
+  }
+
+  return (
+    <div style={{ fontFamily: SITE_FONT }}>
+      <h2 style={{ marginTop: 0 }}>
+        
+      </h2>
+      {loading ? (
+        <div style={{ color: '#6b7280' }}>Loading...</div>
+      ) : pending.length === 0 ? (
+        <div style={{ background: '#f4f7f2', border: '1px dashed #c4d4c7', borderRadius: '1rem', padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+          ✓ No pending requests — you're all caught up!
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {pending.map((user) => (
+            <div key={user.id} style={{ background: 'white', border: '1px solid #d9e2d6', borderRadius: '1rem', padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: '700', fontSize: '1rem', color: '#1f2937' }}>{user.full_name || '(No name)'}</div>
+                <div style={{ fontSize: '0.88rem', color: '#6b7280', marginTop: '0.15rem' }}>{user.email}</div>
+                <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginTop: '0.1rem' }}>
+                  Requested {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {user.role && ` · ${user.role === 'staff' ? 'Staff' : 'Care Team'}`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                <button onClick={() => approve(user.id)} disabled={actioning === user.id}
+                  style={{ background: actioning === user.id ? '#9ca3af' : '#4f6b57', color: 'white', border: 'none', borderRadius: '0.65rem', padding: '0.55rem 1.1rem', fontWeight: '700', fontSize: '0.9rem', cursor: actioning === user.id ? 'not-allowed' : 'pointer', opacity: actioning === user.id ? 0.7 : 1 }}>
+                  {actioning === user.id ? '...' : '✓ Approve'}
+                </button>
+                <button onClick={() => deny(user.id)} disabled={actioning === user.id}
+                  style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '0.65rem', padding: '0.55rem 1.1rem', fontWeight: '700', fontSize: '0.9rem', cursor: actioning === user.id ? 'not-allowed' : 'pointer', opacity: actioning === user.id ? 0.7 : 1 }}>
+                  ✕ Deny
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminPanel() {
   const router = useRouter()
   const [profiles, setProfiles] = useState([])
@@ -172,87 +248,6 @@ export default function AdminPanel() {
 
   const onCallPerson = profiles.find((p) => p.id === onCallUserId)
 
-  function PendingApprovals() {
-  const [pending, setPending] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [actioning, setActioning] = useState(null)
-
-  const loadPending = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role, created_at')
-      .eq('approved', false)
-      .order('created_at', { ascending: true })
-    if (!error && data) setPending(data)
-    setLoading(false)
-  }
-
-  useEffect(() => { loadPending() }, [])
-
-  const approve = async (userId) => {
-    setActioning(userId)
-    const { error } = await supabase.from('profiles').update({ approved: true }).eq('id', userId)
-    if (error) alert(error.message)
-    else await loadPending()
-    setActioning(null)
-  }
-
-  const deny = async (userId) => {
-    if (!confirm('Deny this user? This will delete their profile.')) return
-    setActioning(userId)
-    const { error } = await supabase.from('profiles').delete().eq('id', userId)
-    if (error) alert(error.message)
-    else await loadPending()
-    setActioning(null)
-  }
-
-  return (
-    <div style={{ fontFamily: SITE_FONT }}>
-      <h2 style={{ marginTop: 0 }}>
-        Pending Approvals
-        {pending.length > 0 && (
-          <span style={{ marginLeft: '0.75rem', background: '#fee2e2', color: '#dc2626', borderRadius: '999px', padding: '0.2rem 0.65rem', fontSize: '0.85rem', fontWeight: '800' }}>
-            {pending.length}
-          </span>
-        )}
-      </h2>
-      {loading ? (
-        <div style={{ color: '#6b7280' }}>Loading...</div>
-      ) : pending.length === 0 ? (
-        <div style={{ background: '#f4f7f2', border: '1px dashed #c4d4c7', borderRadius: '1rem', padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-          ✓ No pending requests — you're all caught up!
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {pending.map((user) => (
-            <div key={user.id} style={{ background: 'white', border: '1px solid #d9e2d6', borderRadius: '1rem', padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: '700', fontSize: '1rem', color: '#1f2937' }}>{user.full_name || '(No name)'}</div>
-                <div style={{ fontSize: '0.88rem', color: '#6b7280', marginTop: '0.15rem' }}>{user.email}</div>
-                <div style={{ fontSize: '0.82rem', color: '#9ca3af', marginTop: '0.1rem' }}>
-                  Requested {new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  {user.role && ` · ${user.role === 'staff' ? 'Staff' : 'Care Team'}`}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                <button onClick={() => approve(user.id)} disabled={actioning === user.id}
-                  style={{ background: actioning === user.id ? '#9ca3af' : '#4f6b57', color: 'white', border: 'none', borderRadius: '0.65rem', padding: '0.55rem 1.1rem', fontWeight: '700', fontSize: '0.9rem', cursor: actioning === user.id ? 'not-allowed' : 'pointer', opacity: actioning === user.id ? 0.7 : 1 }}>
-                  {actioning === user.id ? '...' : '✓ Approve'}
-                </button>
-                <button onClick={() => deny(user.id)} disabled={actioning === user.id}
-                  style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '0.65rem', padding: '0.55rem 1.1rem', fontWeight: '700', fontSize: '0.9rem', cursor: actioning === user.id ? 'not-allowed' : 'pointer', opacity: actioning === user.id ? 0.7 : 1 }}>
-                  ✕ Deny
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #edf4ee 0%, #f7f8f3 100%)', fontFamily: SITE_FONT, padding: '1.5rem 1rem 3rem' }}>
       <div style={{ maxWidth: '720px', margin: '0 auto' }}>
@@ -315,11 +310,16 @@ export default function AdminPanel() {
           )}
         </div>
 
+        {/* Pending Approvals */}
+                <div style={sectionStyle}>
+                  <h2 style={{ margin: '0 0 0.35rem', fontSize: '1.15rem', fontWeight: '700', fontFamily: SITE_FONT }}>Pending Approvals</h2>
+                  <PendingApprovals />
+                </div>
+
         {/* User Roles */}
         <div style={sectionStyle}>
           <h2 style={{ margin: '0 0 0.35rem', fontSize: '1.15rem', fontWeight: '700', fontFamily: SITE_FONT }}>User Roles & Access</h2>
           <p style={{ margin: '0 0 1.25rem', color: '#5f6b63', fontSize: '0.92rem', fontFamily: SITE_FONT, lineHeight: '1.5' }}>
-            Staff = pastors and paid staff. Care Team = volunteer caregivers. A person's role determines which tab their assigned cards appear under. Remove Access clears their role and admin rights.
           </p>
 
           <div style={{ display: 'grid', gap: '0.65rem' }}>
